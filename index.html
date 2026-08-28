@@ -2,263 +2,1566 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#08244d">
-<title>EVR Money Manager</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>EVR Personal Expense Manager</title>
 <style>
-:root{--navy:#08244d;--navy2:#123e7c;--blue:#2563eb;--bg:#f3f6fb;--line:#d9e1ec;--muted:#68758a;--green:#16a34a;--orange:#f59e0b;--red:#dc2626;--purple:#7c3aed}
-*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:#172033;font-family:Arial,Helvetica,sans-serif}
-button,input,select,textarea{font:inherit}button{cursor:pointer}
-header{height:64px;background:var(--navy);color:#fff;display:flex;align-items:center;padding:0 18px;position:sticky;top:0;z-index:20}
-.menu{font-size:26px;margin-right:17px;line-height:1;border:0;background:none;color:#fff}.brand{font-size:21px;font-weight:800}.personal{margin-left:auto;font-weight:700}
-main{max-width:1250px;margin:auto;padding:18px 15px 105px}
-.title{display:flex;align-items:center;gap:10px;font-size:27px;font-weight:800;margin:4px 0 18px}
-.titleIcon{display:inline-grid;place-items:center;width:42px;height:42px;background:#eaf1ff;border-radius:12px;font-size:21px}
-.notice{background:#eaf2ff;border-left:4px solid var(--blue);padding:14px;margin-bottom:18px;border-radius:8px}
-.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:15px;box-shadow:0 2px 7px #0000000b}
-.stat{min-height:115px;border-left:5px solid var(--blue)}.green{border-left-color:var(--green)}.orange{border-left-color:var(--orange)}.red{border-left-color:var(--red)}.purple{border-left-color:var(--purple)}
-.click{cursor:pointer}.click:hover{box-shadow:0 5px 16px #0002;transform:translateY(-1px)}
-.icon{display:inline-grid;place-items:center;width:34px;height:34px;background:#edf3ff;border-radius:10px;margin-right:8px;font-size:18px;flex:0 0 34px}
-.label{color:var(--muted);font-size:14px;display:flex;align-items:center}.value{font-size:22px;font-weight:800;margin-top:10px}.sub{color:var(--muted);font-size:13px;margin-top:6px}
-.section{margin-top:22px}.section h2{font-size:20px;margin:0 0 12px}
-.accounts{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.account{border-left:5px solid var(--blue)}
-.accountIcon{display:inline-grid;place-items:center;width:38px;height:38px;background:#edf3ff;border-radius:11px;font-size:21px}
-.accountName{font-weight:800;margin-top:8px}.accountBal{font-size:22px;font-weight:800;margin-top:8px}
-.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:13px}
-.toolbar input,.toolbar select,.form input,.form select,.form textarea{padding:10px;border:1px solid #cbd5e1;border-radius:9px;background:white}
-.form textarea{min-height:90px;resize:vertical}
-.btn{border:0;border-radius:9px;padding:10px 14px;background:var(--blue);color:#fff;font-weight:700}.secondary{background:#e8edf5;color:#172033}.danger{background:var(--red)}
-.tableWrap{overflow:auto;background:#fff;border:1px solid var(--line);border-radius:12px}.table{width:100%;border-collapse:collapse;min-width:850px}
-.table th,.table td{padding:10px;border-bottom:1px solid var(--line);text-align:left;font-size:14px}.table th{background:#eef3fa}
-.badge{padding:5px 9px;border-radius:99px;font-size:12px;font-weight:700}.badge.Paid{background:#dcfce7;color:#166534}.badge.Pending{background:#fef3c7;color:#92400e}.badge.Overdue{background:#fee2e2;color:#991b1b}
-.form{display:grid;grid-template-columns:1fr 1fr;gap:12px}.form label{display:flex;flex-direction:column;gap:5px;color:var(--muted);font-size:13px}.full{grid-column:1/-1}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
-.bottom{position:fixed;bottom:0;left:0;right:0;height:76px;background:var(--navy);display:grid;grid-template-columns:repeat(6,1fr);z-index:50;padding-bottom:env(safe-area-inset-bottom)}
-.nav{border:0;background:transparent;color:#fff;font-size:11px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px}.nav b{font-size:20px;line-height:22px}.nav.active{background:var(--navy2)}
-.period{margin-top:28px;display:grid;grid-template-columns:1fr 1fr;gap:12px}.smallGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.empty{text-align:center;color:var(--muted);padding:25px}
-.modal{display:none;position:fixed;inset:0;background:#0008;z-index:100;align-items:center;justify-content:center;padding:15px}.modal.show{display:flex}
-.modalBox{background:#fff;width:min(680px,100%);max-height:90vh;overflow:auto;border-radius:14px;padding:18px}.modalHead{display:flex;justify-content:space-between;align-items:center}.close{border:0;border-radius:50%;width:36px;height:36px;font-size:22px}
-.toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#172033;color:#fff;padding:11px 16px;border-radius:10px;z-index:200;display:none;box-shadow:0 5px 20px #0004}.toast.show{display:block}
-.menuPanel{display:none;position:fixed;top:64px;left:10px;z-index:80;background:#fff;width:250px;border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 30px #0003;padding:8px}
-.menuPanel.show{display:block}.menuPanel button{width:100%;text-align:left;border:0;background:#fff;padding:12px;border-radius:8px}.menuPanel button:hover{background:#eef3fa}
-@media(max-width:850px){.grid,.accounts{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:560px){.grid,.accounts,.form,.period,.smallGrid{grid-template-columns:1fr}main{padding:12px 9px 105px}.title{font-size:24px}.brand{font-size:18px}}
-@media print{header,.bottom,.toolbar,.actions,.menuPanel{display:none!important}main{padding:0}.card{box-shadow:none}.table th,.table td{border:1px solid #666}.tableWrap{border:1px solid #111}}
+*{box-sizing:border-box}html,body{margin:0;padding:0}body{font-family:Arial,Helvetica,sans-serif;background:#f4f6fa;color:#172033;padding-bottom:78px}button,input,select,textarea{font:inherit}button{cursor:pointer}.hidden{display:none!important}
+.top{height:64px;background:#071b3d;color:#fff;padding:0 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}.logo{font-size:22px;font-weight:800;letter-spacing:.2px}.logo:before{content:'EVR ';color:#ef174f;margin-right:2px}.top .logo{font-size:0}.top .logo::after{content:'Expenses';color:#fff;font-size:22px}.top-right{font-weight:800}.hamb{border:0;background:transparent;color:#fff;font-size:22px;margin-right:12px}.top-left{display:flex;align-items:center}
+.nav{display:none}.container{max-width:1500px;margin:auto;padding:18px 22px 100px}.page{display:none}.page.active{display:block}h1{font-size:26px;margin:4px 0 16px;color:#16233a}h2{font-size:19px;margin:0 0 14px;color:#182640}h3{font-size:15px}.subtle{color:#64748b;font-size:12px}
+.card{background:#fff;border-radius:14px;padding:16px;margin-bottom:16px;box-shadow:0 1px 5px rgba(15,23,42,.08);border:1px solid #e5e9f0}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}.stats{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}.stat{background:#fff;padding:13px 12px;border-radius:12px;border-left:4px solid #2563eb;min-height:82px;box-shadow:0 1px 4px rgba(0,0,0,.06)}.stat.green{border-left-color:#16a34a}.stat.orange{border-left-color:#f59e0b}.stat.red{border-left-color:#dc2626}.stat.purple{border-left-color:#7c3aed}.stat small{color:#64748b;font-size:11px}.stat strong{display:block;font-size:18px;margin-top:8px}.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}.stats-grid .stat{border:1px solid #e2e8f0;border-left:4px solid #2563eb}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.group{display:flex;flex-direction:column;gap:6px}.full{grid-column:1/-1}label{font-size:12px;font-weight:700;color:#344054}input,select,textarea{padding:10px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#172033}textarea{min-height:80px}.btn{border:0;border-radius:7px;padding:9px 13px;font-weight:700;font-size:12px}.primary{background:#1769e8;color:#fff}.success{background:#16a34a;color:#fff}.danger{background:#dc2626;color:#fff}.warning{background:#f59e0b;color:#fff}.secondary{background:#475569;color:#fff}.light{background:#edf1f6;color:#24324a}.buttons{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px;border-bottom:1px solid #e7ebf0;text-align:left;white-space:nowrap}th{background:#f7f9fc;color:#475569}.status{padding:4px 7px;border-radius:12px;font-size:11px;font-weight:700}.paid{background:#d8f7e5;color:#08783b}.pending{background:#fff1cd;color:#935d00}.overdue{background:#ffe0e0;color:#b00000}.filters{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:10px;margin-bottom:14px}.manage-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px;background:#f8fafc;border-radius:8px;margin-bottom:7px}.report-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0}.report-stat{background:#f6f8fb;padding:14px;border-radius:9px;font-size:12px}.report-stat strong{display:block;font-size:19px;margin-top:6px}.notice{background:#eef5ff;border-left:4px solid #2563eb;padding:12px;border-radius:7px;margin-bottom:14px;font-size:12px}.empty{text-align:center;color:#64748b;padding:22px}.modal{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:center;justify-content:center;padding:15px;z-index:100}.modal.show{display:flex}.modal-box{width:100%;max-width:850px;max-height:94vh;overflow:auto;background:#fff;padding:20px;border-radius:14px}.modal-head{display:flex;justify-content:space-between;align-items:center}.close{border:0;background:#edf0f4;width:36px;height:36px;border-radius:50%;font-size:21px}.currency-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.currency-card{background:#fff;border:1px solid #e2e8f0;padding:14px;border-radius:10px}.currency-value{font-size:20px;font-weight:800;margin-top:7px}.toast{position:fixed;right:20px;bottom:90px;background:#111827;color:#fff;padding:12px 15px;border-radius:8px;display:none;z-index:300}.toast.show{display:block}
+.dash-head{display:flex;align-items:baseline;gap:8px}.dash-head .period-label{font-size:12px;color:#64748b}.dashboard-period{margin-top:16px}.period-inline{display:flex;gap:10px;align-items:end;flex-wrap:wrap}.period-inline .group{min-width:150px}.quick-links{display:flex;gap:8px;flex-wrap:wrap}.section-bar{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px}.bank-tabs{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px}.bank-tabs button.active{background:#1769e8;color:#fff}.bank-sub{display:none}.bank-sub.active{display:block}
+.bottom-nav{position:fixed;left:0;right:0;bottom:0;height:68px;background:#061a3d;color:#fff;display:grid;grid-template-columns:repeat(6,1fr);z-index:90;box-shadow:0 -3px 12px rgba(0,0,0,.18)}.bottom-nav button{border:0;background:transparent;color:#fff;font-size:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}.bottom-nav button .ico{font-size:17px;line-height:1}.bottom-nav button.active{background:#0d2c61}.menu-panel{position:fixed;top:64px;left:10px;background:#fff;border:1px solid #dbe2ea;border-radius:10px;box-shadow:0 8px 25px rgba(0,0,0,.16);padding:8px;display:none;z-index:80;min-width:190px}.menu-panel.show{display:block}.menu-panel button{width:100%;text-align:left;border:0;background:#fff;padding:10px;border-radius:7px}.menu-panel button:hover{background:#f1f5f9}
+@media(max-width:1000px){.stats{grid-template-columns:repeat(3,1fr)}.grid2{grid-template-columns:1fr}.currency-grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:650px){body{padding-bottom:70px}.container{padding:13px 10px 90px}.stats{grid-template-columns:repeat(2,1fr)}.form-grid,.filters,.report-stats{grid-template-columns:1fr}.currency-grid{grid-template-columns:1fr}.top{height:58px;padding:0 12px}.top .logo::after{font-size:19px}.top-right{font-size:13px}.bottom-nav{height:64px}.bottom-nav button{font-size:9px}.bottom-nav button .ico{font-size:15px}h1{font-size:22px}.card{padding:13px}.table-wrap{margin-left:-4px;margin-right:-4px}.dashboard-period .period-inline .group{min-width:120px}}
 </style>
 </head>
 <body>
-<header><button class="menu" onclick="toggleMenu()">☰</button><div class="brand">EVR Money Manager</div><div class="personal">Personal</div></header>
 
-<div id="menuPanel" class="menuPanel">
-<button onclick="go('dashboard');toggleMenu()">⌂ Dashboard</button>
-<button onclick="go('expenses');toggleMenu()">▣ Expenses</button>
-<button onclick="go('upcoming');toggleMenu()">◷ Upcoming</button>
-<button onclick="go('overdue');toggleMenu()">⚠ Overdue</button>
-<button onclick="go('people');toggleMenu()">♙ People</button>
-<button onclick="go('categories');toggleMenu()">▤ Categories</button>
-<button onclick="go('banks');toggleMenu()">🏦 Cash & Banks</button>
-<button onclick="go('reports');toggleMenu()">▥ Reports</button>
+<div id="application">
+<header class="top"><div class="top-left"><button class="hamb" onclick="toggleMenu()">☰</button><div class="logo">EVR</div></div><div class="top-right">Personal</div></header>
+<div id="menuPanel" class="menu-panel">
+  <button onclick="page('categories');toggleMenu()">Categories</button>
+  <button onclick="page('backup');toggleMenu()">Backup / Restore</button>
 </div>
-
-<main id="app"></main>
-
-<nav class="bottom" id="bottomNav">
-<button class="nav active" data-p="dashboard"><b>⌂</b><span>Home</span></button>
-<button class="nav" data-p="expenses"><b>▣</b><span>Expenses</span></button>
-<button class="nav" data-p="upcoming"><b>◷</b><span>Upcoming</span></button>
-<button class="nav" data-p="people"><b>♙</b><span>People</span></button>
-<button class="nav" data-p="banks"><b>🏦</b><span>Cash & Banks</span></button>
-<button class="nav" data-p="reports"><b>▥</b><span>Reports</span></button>
+<nav class="bottom-nav" id="bottomNav">
+  <button onclick="page('dashboard',this)" class="active"><span class="ico">⌂</span>Home</button>
+  <button onclick="page('expenses',this)"><span class="ico">▣</span>Expenses</button>
+  <button onclick="page('upcoming',this)"><span class="ico">▢</span>Upcoming</button>
+  <button onclick="page('people',this)"><span class="ico">♙</span>People</button>
+  <button onclick="page('banks',this)"><span class="ico">▥</span>Cash &amp; Banks</button>
+  <button onclick="page('reports',this)"><span class="ico">▤</span>Reports</button>
 </nav>
 
-<div class="modal" id="modal"><div class="modalBox"><div class="modalHead"><h2 id="mt"></h2><button class="close" onclick="closeModal()">×</button></div><div id="mb"></div></div></div>
+<main class="container">
+
+<section id="dashboard" class="page active">
+<div class="dash-head"><h1>1. Dashboard</h1><span class="period-label">(Latest Month)</span></div>
+
+<div class="notice">All expenses are recorded in <b>₹ INR</b>. Data is automatically saved in this browser.</div>
+<div class="stats">
+<div class="stat"><small>Total Expenses</small><strong id="totalAmount">₹0.00</strong><span class="subtle">This Month</span></div>
+<div class="stat green"><small>Paid</small><strong id="paidAmount">₹0.00</strong><span class="subtle">This Month</span></div>
+<div class="stat orange"><small>Pending</small><strong id="pendingAmount">₹0.00</strong><span class="subtle">This Month</span></div>
+<div class="stat red"><small>Overdue</small><strong id="overdueAmount">₹0.00</strong><span class="subtle">Total Overdue</span></div>
+<div class="stat purple"><small>People</small><strong id="peopleCount">0</strong><span class="subtle">Members</span></div>
+<div class="stat"><small>Total Bank Balance</small><strong id="dashboardBankBalance">₹0.00</strong><span class="subtle">All Accounts</span></div>
+</div>
+<div class="grid2">
+<div class="card"><div style="display:flex;justify-content:space-between;align-items:center"><h2>Latest Transactions <span class="subtle">(Current Month)</span></h2><button class="btn primary" onclick="openExpense()">+ Add Expense</button></div><div id="recent"></div></div>
+<div class="card"><h2>Upcoming Expenses</h2><div id="upcomingTotal" class="notice">0 expenses · ₹0</div><div id="dashboardUpcoming"></div></div>
+</div><div class="card" id="dashboardPeriodCard">
+  <h2>Dashboard Period</h2>
+  <div style="display:flex;gap:12px;flex-wrap:wrap">
+    <div class="group">
+      <label>Month</label>
+      <select id="dashboardMonth" onchange="updateDashboardPeriod()">
+        <option value="1">January</option><option value="2">February</option>
+        <option value="3">March</option><option value="4">April</option>
+        <option value="5">May</option><option value="6">June</option>
+        <option value="7">July</option><option value="8">August</option>
+        <option value="9">September</option><option value="10">October</option>
+        <option value="11">November</option><option value="12">December</option>
+      </select>
+    </div>
+<div style="margin-top:20px;text-align:center">
+  <button class="btn primary" onclick="saveDashboardPDF()">📄 Save Dashboard PDF</button>
+</div>
+
+    <div class="group">
+      <label>Year</label>
+      <select id="dashboardYear" onchange="updateDashboardPeriod()"></select>
+    </div>
+  </div>
+</div>
+
+</section>
+
+<section id="expenses" class="page">
+<h1>2. Expenses <span class="subtle">(All)</span></h1><div class="card">
+<div style="display:flex;justify-content:space-between;align-items:center"><h2>All Expenses</h2><button class="btn primary" onclick="openExpense()">+ Add Expense</button></div><br>
+<div class="filters">
+<div class="group"><label>Search</label><input id="search" oninput="renderExpenses()" placeholder="Search"></div>
+<div class="group"><label>Person</label><select id="filterPerson" onchange="renderExpenses()"></select></div>
+<div class="group"><label>Category</label><select id="filterCategory" onchange="renderExpenses()"></select></div>
+<div class="group"><label>Status</label><select id="filterStatus" onchange="renderExpenses()"><option value="">All</option><option>Paid</option><option>Pending</option><option>Overdue</option></select></div>
+</div>
+<div class="table-wrap">
+<div id="expensesSummary" class="stats-grid" style="margin:16px 0"></div>
+<table><thead><tr><th>Date</th><th>Expense</th><th>Amount</th><th>Category</th><th>Person</th><th>Payment Mode</th><th>Due Date</th><th>Status</th><th>Actions</th></tr></thead><tbody id="expenseTable"></tbody></table>
+<div style="margin-top:20px;text-align:center">
+  <button class="btn primary" onclick="saveExpensesPDF()">📄 Save Expenses PDF</button>
+</div>
+</div>
+</div></section>
+
+<section id="upcoming" class="page"><h1>4. Upcoming Expenses <span class="subtle">(All)</span></h1><div class="grid2">
+<div class="card"><h2>Upcoming</h2><div id="upcomingList"></div></div><div class="card"><h2>Overdue</h2><div id="overdueList"></div>
+<div style="margin-top:20px;text-align:center">
+  <button class="btn primary" onclick="saveUpcomingPDF()">📄 Save Upcoming &amp; Overdue PDF</button>
+</div>
+</div>
+</div></section>
+
+<section id="overdue" class="page"><h1>5. Overdue Expenses</h1><div class="card"><h2>All Overdue Expenses</h2><div id="overduePageList"></div></div></section>
+<section id="people" class="page"><h1>6. People</h1><div class="grid2">
+<div class="card"><h2>Add Person</h2><div class="group"><label>Person Name</label><input id="newPerson" placeholder="Person name"></div><div class="buttons"><button class="btn success" onclick="addPerson()">Add Person</button></div></div>
+<div class="card"><h2>People List</h2><div id="peopleList"></div></div></div></section>
+
+<section id="categories" class="page"><h1>Categories</h1><div class="grid2">
+<div class="card"><h2>Add Category</h2><div class="group"><label>Category Name</label><input id="newCategory" placeholder="Category name"></div><div class="buttons"><button class="btn success" onclick="addCategory()">Add Category</button></div></div>
+<div class="card"><h2>Category List</h2><div id="categoryList"></div></div></div></section>
+
+<section id="reports" class="page">
+<h1>Reports</h1>
+<div class="card"><h2>Daily / Monthly / Yearly Report</h2>
+<div class="form-grid">
+<div class="group"><label>Report Type</label><select id="reportType" onchange="renderPeriodReport()"><option value="daily">Daily</option><option value="monthly" selected>Monthly</option><option value="yearly">Yearly</option></select></div>
+<div class="group" id="reportDateBox"><label>Date</label><input id="reportDate" type="date" onchange="renderPeriodReport()"></div>
+<div class="group" id="reportMonthBox"><label>Month</label><select id="reportMonth" onchange="renderPeriodReport()"></select></div>
+<div class="group"><label>Year</label><select id="reportYear" onchange="renderPeriodReport()"></select></div>
+</div>
+<div id="periodReport"></div><div class="buttons"><button class="btn success" onclick="periodPDF()">Save PDF</button><button class="btn primary" onclick="periodCSV()">Export CSV</button></div>
+</div>
+
+<div class="card"><h2>Individual Person Report</h2>
+<div class="form-grid">
+<div class="group"><label>Person</label><select id="personReportPerson" onchange="renderPersonReport()"></select></div>
+<div class="group"><label>Period</label><select id="personReportType" onchange="renderPersonReport()">
+<option value="daily">Daily</option>
+<option value="weekly">Weekly</option><option value="monthly">Monthly</option>
+<option value="yearly">Yearly</option>
+<option value="all">All Time</option>
+</select></div>
+<div class="group" id="personReportDateWrap"><label>Date</label><input type="date" id="personReportDate" onchange="renderPersonReport()"></div>
+<div class="group" id="personReportMonthWrap"><label>Month</label><select id="personReportMonth" onchange="renderPersonReport()"></select></div>
+<div class="group" id="personReportYearWrap"><label>Year</label><select id="personReportYear" onchange="renderPersonReport()"></select></div>
+</div>
+<div id="personReport"></div><div class="buttons"><button class="btn success" onclick="personPDF()">Save Person PDF</button><button class="btn primary" onclick="personCSV()">Export Person CSV</button></div>
+</div>
+
+<div class="card"><h2>Upcoming Expenses Report</h2>
+<p>Shows all pending expenses with a future due date, sorted by due date.</p>
+<div id="upcomingReport"></div>
+<div class="buttons"><button class="btn success" onclick="upcomingPDF()">Save Upcoming Expenses PDF</button></div>
+</div>
+
+<div class="card"><h2>Category Report</h2>
+<div class="form-grid">
+<div class="group"><label>Category</label><select id="categoryReportCategory" onchange="renderCategoryReport()"></select></div>
+<div class="group"><label>Period</label><select id="categoryReportType" onchange="renderCategoryReport()">
+<option value="daily">Daily</option>
+<option value="monthly">Monthly</option>
+<option value="yearly">Yearly</option>
+<option value="all">All Time</option>
+</select></div>
+<div class="group" id="categoryReportDateWrap"><label>Date</label><input type="date" id="categoryReportDate" onchange="renderCategoryReport()"></div>
+<div class="group" id="categoryReportMonthWrap"><label>Month</label><select id="categoryReportMonth" onchange="renderCategoryReport()"></select></div>
+<div class="group" id="categoryReportYearWrap"><label>Year</label><select id="categoryReportYear" onchange="renderCategoryReport()"></select></div>
+</div>
+<div id="categoryReport"></div>
+<div class="buttons"><button class="btn success" onclick="categoryPDF()">Save Category PDF</button></div></div>
+</section>
+
+
+<section id="banks" class="page"><h1>8. Cash &amp; Banks <span class="subtle">(Overview)</span></h1>
+<div class="bank-tabs">
+<button class="btn light active" onclick="showBankSub('overview',this)">Overview</button>
+<button class="btn light" onclick="showBankSub('transfer',this)">Bank Transfer</button>
+<button class="btn light" onclick="showBankSub('deposit',this)">Cash Deposit</button>
+<button class="btn light" onclick="showBankSub('cashbank',this)">Cash → Bank</button>
+<button class="btn light" onclick="showBankSub('atm',this)">ATM Withdrawal</button>
+</div>
+<div id="bankSubOverview" class="bank-sub active">
+<div class="grid2">
+<div class="card"><h2>Accounts</h2><div id="bankList"></div><div class="group"><label>Bank / Account Name</label><input id="newBankName" placeholder="HDFC Bank"></div><div class="group"><label>Available Balance</label><input id="newBankBalance" type="number" step="0.01" placeholder="0"></div><div class="buttons"><button class="btn success" onclick="addBank()">Add Bank</button></div></div>
+<div class="card"><h2>Bank / Cash Transaction</h2><div class="form-grid">
+<div class="group"><label>From</label><select id="txFrom"></select></div><div class="group"><label>To</label><select id="txTo"></select></div>
+<div class="group"><label>Amount</label><input id="txAmount" type="number" step="0.01"></div><div class="group"><label>Type</label><select id="txType"><option value="transfer">Bank to Bank Transfer</option><option value="deposit">Cash Deposit</option><option value="atm">ATM Withdrawal</option><option value="adjust">Manual Balance Adjustment</option></select></div>
+<div class="group full"><label>Note</label><input id="txNote"></div></div><div class="buttons"><button class="btn primary" onclick="saveBankTransaction()">Save Transaction</button></div></div>
+</div>
+<div class="card"><h2>Available Balances</h2><div id="bankBalances" class="currency-grid"></div></div>
+<div class="card"><h2>9. Cash &amp; Banks — PDF Report</h2><div class="buttons"><button class="btn success" onclick="saveBankTransactionsPDF()">Save Bank Transactions PDF</button></div><div class="table-wrap"><table><thead><tr><th>Date</th><th>Type</th><th>From</th><th>To</th><th>Amount</th><th>Note</th></tr></thead><tbody id="bankTxTable"></tbody></table></div></div>
+</div>
+<div id="bankSubTransfer" class="bank-sub"><div class="card"><h2>8A. Bank Transfer</h2><div class="form-grid"><div class="group"><label>From Bank</label><select id="subTransferFrom"></select></div><div class="group"><label>To Bank</label><select id="subTransferTo"></select></div><div class="group"><label>Amount</label><input id="subTransferAmount" type="number" min="0" step="0.01"></div><div class="group"><label>Date</label><input id="subTransferDate" type="date"></div><div class="group full"><label>Notes</label><input id="subTransferNote"></div></div><div class="buttons"><button class="btn primary" onclick="saveBankSubTransaction('transfer')">Save</button></div><div class="notice">This transfers money between added accounts and is not an expense.</div></div></div>
+<div id="bankSubDeposit" class="bank-sub"><div class="card"><h2>8B. Cash Deposit</h2><div class="form-grid"><div class="group"><label>Deposit Into</label><select id="subDepositTo"></select></div><div class="group"><label>Amount</label><input id="subDepositAmount" type="number" min="0" step="0.01"></div><div class="group"><label>Date</label><input id="subDepositDate" type="date"></div><div class="group full"><label>Notes</label><input id="subDepositNote"></div></div><div class="buttons"><button class="btn primary" onclick="saveBankSubTransaction('deposit')">Save</button></div><div class="notice">Cash is not automatically changed by an ATM withdrawal. Add cash separately when you actually receive it.</div></div></div>
+<div id="bankSubCashbank" class="bank-sub"><div class="card"><h2>8C. Cash → Bank</h2><div class="form-grid"><div class="group"><label>From</label><select id="subCashFrom"></select></div><div class="group"><label>To Bank</label><select id="subCashTo"></select></div><div class="group"><label>Amount</label><input id="subCashAmount" type="number" min="0" step="0.01"></div><div class="group"><label>Date</label><input id="subCashDate" type="date"></div><div class="group full"><label>Notes</label><input id="subCashNote"></div></div><div class="buttons"><button class="btn primary" onclick="saveBankSubTransaction('cashbank')">Save</button></div></div></div>
+<div id="bankSubAtm" class="bank-sub"><div class="card"><h2>8D. ATM Withdrawal</h2><div class="form-grid"><div class="group"><label>From Bank</label><select id="subAtmFrom"></select></div><div class="group"><label>Amount</label><input id="subAtmAmount" type="number" min="0" step="0.01"></div><div class="group"><label>Date</label><input id="subAtmDate" type="date"></div><div class="group full"><label>Notes</label><input id="subAtmNote"></div></div><div class="buttons"><button class="btn primary" onclick="saveBankSubTransaction('atm')">Save</button></div><div class="notice"><b>Important:</b> ATM withdrawal deducts from the bank only. It does NOT automatically increase Cash.</div></div></div>
+</section>
+
+<section id="backup" class="page">
+<h1>Backup / Restore</h1>
+<div class="grid2">
+<div class="card"><h2>Export Full Backup JSON</h2><p>Save expenses, people, categories and settings as one JSON backup file.</p><button class="btn primary" onclick="exportJSON()">Download Full Backup JSON</button></div>
+<div class="card"><h2>Import Full Backup JSON</h2><p>Restore a previous complete backup.</p><input id="importFile" type="file" accept=".json,.JSON,application/json,text/json"><div class="buttons"><button class="btn success" onclick="importJSON()">Import Full Backup</button></div></div>
+<div class="card"><h2>Export All Expenses CSV</h2><p>Spreadsheet-compatible CSV file containing all expenses.</p><button class="btn primary" onclick="downloadAllCSV()">Download Expenses CSV</button></div>
+<div class="card"><h2>Save Complete PDF</h2><p>Create a PDF containing all current expenses.</p><button class="btn success" onclick="allExpensesPDF()">Save All Expenses PDF</button></div>
+
+<div class="card">
+<h2>Backup Reminder</h2>
+<p>
+Your EVR data is saved automatically in this browser.
+This reminder helps you remember to download a portable JSON backup.
+</p>
+
+<div class="group">
+<label>Backup reminder</label>
+<select id="backupReminderFrequency" onchange="saveBackupReminderSettings()">
+<option value="7">Every 7 days</option>
+<option value="14">Every 14 days</option>
+<option value="30">Every 30 days</option>
+</select>
+</div>
+
+<div
+id="backupReminderStatus"
+class="notice"
+style="margin-top:15px;margin-bottom:0">
+Checking backup status...
+</div>
+
+<div class="buttons">
+<button class="btn primary" onclick="backupNow()">
+Backup Now
+</button>
+
+<button class="btn light" onclick="clearBackupReminder()">
+Reset Reminder
+</button>
+</div>
+</div>
+
+<div class="card"><h2>Clear Everything</h2><p>This permanently removes local expenses, people and categories from this browser.</p><button class="btn danger" onclick="clearAll()">Clear All Data</button></div>
+</div>
+</section>
+</main></div>
+
+<div id="expenseModal" class="modal"><div class="modal-box">
+<div class="modal-head"><h2 id="modalTitle">Add Expense</h2><button class="close" onclick="closeExpense()">×</button></div>
+<div class="form-grid">
+<div class="group"><label>Expense Name</label><input id="eName" placeholder="Example: Rent"></div>
+<div class="group"><label>Amount (₹ INR)</label><input id="eAmount" type="number" min="0" step="0.01" placeholder="0"></div>
+<div class="group"><label>Category</label><select id="eCategory"></select></div>
+<div class="group"><label>Person</label><select id="ePerson"></select></div>
+<div class="group"><label>Expense Date</label><input id="eDate" type="date"></div>
+<div class="group"><label>Due Date</label><input id="eDueDate" type="date"></div>
+<div class="group"><label>Payment Mode</label><select id="ePayment"><option>Cash</option><option>Bank Transfer</option><option>UPI</option><option>Credit Card</option><option>Debit Card</option><option>Other</option></select></div>
+<div class="group"><label>Paid From (leave blank if Pending / Other)</label><select id="eAccount"><option value="">No Bank / Cash</option></select></div>
+<div class="group"><label>Status</label><select id="eStatus"><option>Paid</option><option>Pending</option><option>Overdue</option></select></div>
+<div class="group full"><label>Notes</label><textarea id="eNotes" placeholder="Optional"></textarea></div>
+</div>
+<div class="buttons"><button class="btn primary" onclick="saveExpense()">Save Expense</button><button class="btn light" onclick="closeExpense()">Cancel</button></div>
+</div></div>
+
 <div id="toast" class="toast"></div>
 
 <script>
-"use strict";
-const KEY="EVR_MONEY_MANAGER_NEW_APP_V2";
-const DEFAULT_CATS=["Food","Rent","Bills","EMI","Travel","Shopping","Medical","Transport","Other"];
+const KEY='evr_personal_expenses_v3';
+const DEFAULT_CATS=['Food','Travel','Rent','Utilities','Shopping','Medical','Education','Entertainment','Bills','Other'];
+let db=loadDB(), editId=null;
 
-function defaultDB(){return{version:2,expenses:[],accounts:[
-{id:"bank_1",name:"Main Bank",type:"bank",balance:0},
-{id:"cash_1",name:"Cash Wallet",type:"cash",balance:0}],people:["Viju"],categories:[...DEFAULT_CATS],updatedAt:new Date().toISOString()};}
-
-function normalizeDB(d){
- d=d||{};
- let rawAccounts=Array.isArray(d.accounts)?d.accounts:(Array.isArray(d.banks)?d.banks:(Array.isArray(d.bankAccounts)?d.bankAccounts:[]));
- d.accounts=rawAccounts.map((a,i)=>({id:a.id??("account_"+i),name:a.name??"Account",
- type:(a.type==="cash"||String(a.name||"").toLowerCase().includes("cash"))?"cash":"bank",
- balance:Number(a.balance??a.openingBalance??a.currentBalance??0)}));
- if(!d.accounts.length)d.accounts=defaultDB().accounts;
- let rawExp=Array.isArray(d.expenses)?d.expenses:(Array.isArray(d.expenseList)?d.expenseList:(Array.isArray(d.items)?d.items:[]));
- d.expenses=rawExp.map((e,i)=>({id:e.id??("expense_"+Date.now()+"_"+i),name:e.name??e.expense??e.title??"",
- amount:Number(e.amount??e.value??0),category:e.category??e.cat??"Other",person:e.person??e.personName??"General",
- date:e.date??e.expenseDate??today(),due:e.due??e.dueDate??"",payment:e.payment??e.paymentMode??e.mode??"Cash",
- status:e.status??"Pending",notes:e.notes??e.note??""}));
- d.people=Array.isArray(d.people)&&d.people.length?d.people:(Array.isArray(d.persons)&&d.persons.length?d.persons:["Viju"]);
- d.categories=Array.isArray(d.categories)&&d.categories.length?d.categories:(Array.isArray(d.cats)&&d.cats.length?d.cats:[...DEFAULT_CATS]);
- d.version=2;return d;
-}
-function loadDB(){try{let r=localStorage.getItem(KEY);return r?normalizeDB(JSON.parse(r)):defaultDB()}catch(e){return defaultDB()}}
-let db=loadDB();
-
-function save(){db.updatedAt=new Date().toISOString();localStorage.setItem(KEY,JSON.stringify(db))}
+function defaultDB(){return {expenses:[],people:['Me'],categories:DEFAULT_CATS,banks:[{id:'cash',name:'Cash',balance:0,openingBalance:0}],bankTransactions:[],version:4,updatedAt:new Date().toISOString()}}
+function loadDB(){try{const x=JSON.parse(localStorage.getItem(KEY));if(x&&Array.isArray(x.expenses)){x.banks=Array.isArray(x.banks)&&x.banks.length?x.banks:[{id:'cash',name:'Cash',balance:0,openingBalance:0}];x.bankTransactions=Array.isArray(x.bankTransactions)?x.bankTransactions:[];return x}return defaultDB()}catch(e){return defaultDB()}}
+function saveDB(){db.updatedAt=new Date().toISOString();localStorage.setItem(KEY,JSON.stringify(db));renderAll()}
+function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+function money(n){return '₹'+Number(n||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})}
 function today(){return new Date().toISOString().slice(0,10)}
-function money(v){return"₹"+Number(v||0).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2})}
-function esc(x){return String(x??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]))}
-function uid(p){return p+"_"+Date.now()+"_"+Math.random().toString(36).slice(2,8)}
-function toast(m){let t=document.getElementById("toast");t.textContent=m;t.classList.add("show");clearTimeout(window.__t);window.__t=setTimeout(()=>t.classList.remove("show"),2200)}
-function toggleMenu(){document.getElementById("menuPanel").classList.toggle("show")}
-function closeModal(){document.getElementById("modal").classList.remove("show")}
-function go(p){location.hash=p}
-function head(i,t,e=""){return`<div class="title"><span class="titleIcon">${i}</span><span>${t}</span>${e}</div>`}
-function stat(i,l,v,s="",c="",p=""){return`<div class="card stat ${c} ${p?"click":""}"${p?` onclick="go('${p}')"`:""}><div class="label"><span class="icon">${i}</span>${l}</div><div class="value">${money(v)}</div><div class="sub">${s}</div></div>`}
-function monthKey(d){return String(d||"").slice(0,7)}
-function currentMonth(){return today().slice(0,7)}
-function monthLabel(k){let a=k.split("-").map(Number);return new Date(a[0],a[1]-1,1).toLocaleString("en-IN",{month:"long",year:"numeric"})}
+function fmtDate(s){if(!s)return '-';let p=s.split('-');return p.length===3?`${p[2]}-${p[1]}-${p[0]}`:s}
+function getExpenses(){return [...db.expenses].sort((a,b)=>(b.date||'').localeCompare(a.date||''))}
+function statusOf(e){if(e.status==='Paid')return 'Paid';if(e.dueDate&&e.dueDate<today())return 'Overdue';return 'Pending'}
+function toast(t){let x=document.getElementById('toast');x.textContent=t;x.classList.add('show');setTimeout(()=>x.classList.remove('show'),2200)}
 
-function dashboard(){
- let mk=currentMonth(),e=db.expenses.filter(x=>monthKey(x.date)===mk);
- let sum=f=>e.filter(f).reduce((s,x)=>s+Number(x.amount||0),0);
- let total=e.reduce((s,x)=>s+Number(x.amount||0),0),over=db.expenses.filter(x=>x.status==="Overdue").reduce((s,x)=>s+Number(x.amount||0),0);
- let bank=db.accounts.filter(x=>x.type==="bank").reduce((s,x)=>s+Number(x.balance||0),0);
- let cash=db.accounts.filter(x=>x.type==="cash").reduce((s,x)=>s+Number(x.balance||0),0);
- document.getElementById("app").innerHTML=head("⌂","Dashboard",`<small style="font-size:13px;color:#68758a">Latest Month</small>`)
- +`<div class="notice">ⓘ All money is recorded in <b>₹ INR</b>. Data is automatically saved in this browser.</div>
- <div class="grid">
- ${stat("₹","Total Expenses",total,"This Month")}
- ${stat("✓","Paid",sum(x=>x.status==="Paid"),"This Month","green")}
- ${stat("◷","Pending",sum(x=>x.status==="Pending"),"This Month","orange","upcoming")}
- ${stat("⚠","Overdue",over,"Total Overdue","red","overdue")}
- ${stat("♙","People",db.people.length,"Members","purple","people")}
- ${stat("🏦","Bank Balance",bank,"All Bank Accounts","","banks")}
- ${stat("💵","Cash Available",cash,"Cash / Wallet","green","banks")}
- </div>
- <div class="section"><h2>Bank & Cash Accounts</h2><div class="accounts">${db.accounts.map(a=>accountDash(a)).join("")}</div></div>
- <div class="period"><div class="card"><b>Dashboard Period</b><div class="sub">${monthLabel(mk)}</div></div>
- <div class="card click" onclick="go('reports')"><b>Reports</b><div class="sub">Open reports →</div></div></div>`;
-}
-function accountDash(a){return`<div class="card account click" onclick="go('banks')"><div class="accountIcon">${a.type==="bank"?"🏦":"💵"}</div><div class="accountName">${esc(a.name)}</div><div class="accountBal">${money(a.balance)}</div><div class="sub">${a.type==="bank"?"Bank":"Cash / Wallet"}</div></div>`}
+function page(id,btn){document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));const t=document.getElementById(id);if(!t)return;t.classList.add('active');document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('active'));if(btn)btn.classList.add('active');if(id==='reports')renderReports();if(id==='banks')renderBanks();if(id==='overdue')renderUpcoming();window.scrollTo(0,0)}
+function fillSelect(id,items,allLabel){let s=document.getElementById(id);if(!s)return;let old=s.value;s.innerHTML=(allLabel?`<option value="">${esc(allLabel)}</option>`:'')+items.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('');if([...s.options].some(o=>o.value===old))s.value=old}
+function initReportYears(){
+  const current=new Date().getFullYear();
+  const years=[];
+  for(let y=2000;y<=2100;y++){
+    years.push(y);
+  }
 
-function expenseTable(list){
- if(!list.length)return`<div class="card empty">No expenses found.</div>`;
- return`<div class="tableWrap"><table class="table"><thead><tr><th>Date</th><th>Expense</th><th>Amount</th><th>Category</th><th>Person</th><th>Payment</th><th>Status</th><th>Action</th></tr></thead><tbody>
- ${list.slice().sort((a,b)=>String(b.date).localeCompare(String(a.date))).map(e=>`<tr><td>${esc(e.date)}</td><td>${esc(e.name)}</td><td>${money(e.amount)}</td><td>${esc(e.category)}</td><td>${esc(e.person)}</td><td>${esc(e.payment)}</td><td><span class="badge ${esc(e.status)}">${esc(e.status)}</span></td><td><button class="btn secondary" onclick="expenseForm('${esc(e.id)}')">Edit</button></td></tr>`).join("")}</tbody></table></div>`;
-}
-function expenses(){document.getElementById("app").innerHTML=head("▣","Expenses")+`<div class="toolbar">
-<input id="q" placeholder="Search..." oninput="filterE()"><select id="sf" onchange="filterE()"><option value="">All Status</option><option>Paid</option><option>Pending</option><option>Overdue</option></select>
-<button class="btn" onclick="expenseForm()">＋ Add Expense</button><button class="btn secondary" onclick="pdfExpenses()">Save as PDF</button>
-<button class="btn secondary" onclick="backup()">Backup</button><button class="btn secondary" onclick="document.getElementById('restoreInput').click()">Restore</button>
-<input id="restoreInput" type="file" accept=".json,application/json" hidden onchange="restore(event)"></div><div id="etable">${expenseTable(db.expenses)}</div>`}
-function filterE(){let q=(document.getElementById("q")?.value||"").toLowerCase(),s=document.getElementById("sf")?.value||"";document.getElementById("etable").innerHTML=expenseTable(db.expenses.filter(e=>(!q||JSON.stringify(e).toLowerCase().includes(q))&&(!s||e.status===s)))}
+  ['reportYear','personReportYear','categoryReportYear'].forEach(id=>{
+    const s=document.getElementById(id);
+    if(!s)return;
 
-function expenseForm(id){
- let e=db.expenses.find(x=>String(x.id)===String(id))||{date:today(),name:"",amount:"",category:db.categories[0],person:db.people[0],payment:"Cash",status:"Pending",due:"",notes:""};
- document.getElementById("mt").textContent=id?"Edit Expense":"Add Expense";
- document.getElementById("mb").innerHTML=`<form class="form" onsubmit="saveExpense(event,'${id?esc(id):""}')">
- <label>Date<input type="date" name="date" value="${esc(e.date)}" required></label><label>Expense<input name="name" value="${esc(e.name)}" required></label>
- <label>Amount (₹)<input type="number" step="0.01" min="0" name="amount" value="${esc(e.amount)}" required></label>
- <label>Category<select name="category">${db.categories.map(x=>`<option ${x===e.category?"selected":""}>${esc(x)}</option>`).join("")}</select></label>
- <label>Person<select name="person">${db.people.map(x=>`<option ${x===e.person?"selected":""}>${esc(x)}</option>`).join("")}</select></label>
- <label>Payment<select name="payment">${["Cash","UPI","Bank Transfer","Debit Card","Credit Card","Other"].map(x=>`<option ${x===e.payment?"selected":""}>${x}</option>`).join("")}</select></label>
- <label>Status<select name="status">${["Paid","Pending","Overdue"].map(x=>`<option ${x===e.status?"selected":""}>${x}</option>`).join("")}</select></label>
- <label>Due Date<input type="date" name="due" value="${esc(e.due)}"></label><label class="full">Notes<textarea name="notes">${esc(e.notes)}</textarea></label>
- <div class="full actions"><button class="btn">Save</button>${id?`<button type="button" class="btn danger" onclick="delExpense('${esc(id)}')">Delete</button>`:""}<button type="button" class="btn secondary" onclick="closeModal()">Cancel</button></div></form>`;
- document.getElementById("modal").classList.add("show");
-}
-function saveExpense(ev,id){ev.preventDefault();let o=Object.fromEntries(new FormData(ev.target));o.amount=Number(o.amount||0);o.id=id||uid("expense");let i=db.expenses.findIndex(x=>String(x.id)===String(id));if(id&&i>=0)db.expenses[i]=o;else db.expenses.push(o);save();closeModal();expenses();toast("Expense saved.")}
-function delExpense(id){if(!confirm("Delete this expense?"))return;db.expenses=db.expenses.filter(x=>String(x.id)!==String(id));save();closeModal();expenses();toast("Expense deleted.")}
+    const old=s.value;
 
-function upcoming(){document.getElementById("app").innerHTML=head("◷","Upcoming")+`<div class="notice">Pending expenses and their due dates are shown here.</div>${expenseTable(db.expenses.filter(x=>x.status==="Pending"))}`}
-function overdue(){document.getElementById("app").innerHTML=head("⚠","Overdue")+`<div class="notice">Overdue expenses are shown here.</div>${expenseTable(db.expenses.filter(x=>x.status==="Overdue"))}`}
+    s.innerHTML=years.map(y=>
+      `<option value="${y}">${y}</option>`
+    ).join('');
 
-function people(){document.getElementById("app").innerHTML=head("♙","People")+`<div class="card"><form class="toolbar" onsubmit="addPerson(event)"><input id="personName" placeholder="Person name" required><button class="btn">Add Person</button></form><div class="accounts">${db.people.map(p=>`<div class="card"><b>♙ ${esc(p)}</b><div class="sub">${db.expenses.filter(e=>e.person===p).length} expenses</div></div>`).join("")}</div></div>`}
-function addPerson(e){e.preventDefault();let p=document.getElementById("personName").value.trim();if(p&&!db.people.includes(p)){db.people.push(p);save();people();toast("Person added.")}}
-
-function categories(){document.getElementById("app").innerHTML=head("▤","Categories")+`<div class="card"><form class="toolbar" onsubmit="addCategory(event)"><input id="catName" placeholder="Category name" required><button class="btn">Add Category</button></form><div class="smallGrid">${db.categories.map(c=>`<div class="card"><b>▤ ${esc(c)}</b><div class="sub">${db.expenses.filter(e=>e.category===c).length} expenses</div><div class="actions"><button class="btn secondary" onclick="deleteCategory('${esc(c)}')">Delete</button></div></div>`).join("")}</div></div>`}
-function addCategory(e){e.preventDefault();let c=document.getElementById("catName").value.trim();if(c&&!db.categories.includes(c)){db.categories.push(c);save();categories();toast("Category added.")}}
-function deleteCategory(c){if(db.categories.length<=1)return alert("Keep at least one category.");if(confirm("Delete this category? Existing expenses will keep their category name.")){db.categories=db.categories.filter(x=>x!==c);save();categories();toast("Category deleted.")}}
-
-function banks(){
- let b=db.accounts.filter(x=>x.type==="bank"),c=db.accounts.filter(x=>x.type==="cash");
- document.getElementById("app").innerHTML=head("🏦","Cash & Banks")+`<div class="toolbar"><button class="btn" onclick="accountForm()">＋ Add Bank / Cash</button><button class="btn secondary" onclick="pdfAccounts()">Save as PDF</button><button class="btn secondary" onclick="backup()">Backup</button><button class="btn secondary" onclick="document.getElementById('restoreBankInput').click()">Restore</button><input id="restoreBankInput" type="file" accept=".json,application/json" hidden onchange="restore(event)"></div>
- <h2>Bank Accounts</h2><div class="accounts">${b.map(accountCard).join("")||'<div class="card empty">No bank accounts.</div>'}</div>
- <h2 style="margin-top:25px">Cash / Wallet</h2><div class="accounts">${c.map(accountCard).join("")||'<div class="card empty">No cash accounts.</div>'}</div>`;
-}
-function accountCard(a){return`<div class="card account"><div class="accountIcon">${a.type==="bank"?"🏦":"💵"}</div><div class="accountName">${esc(a.name)}</div><div class="accountBal">${money(a.balance)}</div><div class="sub">${a.type==="bank"?"Bank":"Cash / Wallet"}</div><div class="actions"><button class="btn secondary" onclick="accountForm('${esc(a.id)}')">Edit</button><button class="btn danger" onclick="delAccount('${esc(a.id)}')">Delete</button></div></div>`}
-function accountForm(id){
- let a=db.accounts.find(x=>String(x.id)===String(id))||{name:"",type:"bank",balance:0};
- document.getElementById("mt").textContent=id?"Edit Bank / Cash":"Add Bank / Cash";
- document.getElementById("mb").innerHTML=`<form class="form" onsubmit="saveAccount(event,'${id?esc(id):""}')"><label>Account Name<input name="name" value="${esc(a.name)}" required></label><label>Type<select name="type"><option value="bank" ${a.type==="bank"?"selected":""}>Bank</option><option value="cash" ${a.type==="cash"?"selected":""}>Cash / Wallet</option></select></label><label class="full">Current Balance (₹)<input name="balance" type="number" step="0.01" value="${esc(a.balance)}" required></label><div class="full actions"><button class="btn">Save</button><button type="button" class="btn secondary" onclick="closeModal()">Cancel</button></div></form>`;
- document.getElementById("modal").classList.add("show");
-}
-function saveAccount(ev,id){ev.preventDefault();let o=Object.fromEntries(new FormData(ev.target));o.balance=Number(o.balance||0);o.id=id||uid("account");let i=db.accounts.findIndex(x=>String(x.id)===String(id));if(id&&i>=0)db.accounts[i]=o;else db.accounts.push(o);save();closeModal();banks();toast("Account saved.")}
-function delAccount(id){if(db.accounts.length<=1)return alert("Keep at least one account.");if(confirm("Delete this account?")){db.accounts=db.accounts.filter(x=>String(x.id)!==String(id));save();banks();toast("Account deleted.")}}
-
-function reports(){
- let total=db.expenses.reduce((s,e)=>s+Number(e.amount||0),0),paid=db.expenses.filter(e=>e.status==="Paid").reduce((s,e)=>s+Number(e.amount||0),0),pending=db.expenses.filter(e=>e.status==="Pending").reduce((s,e)=>s+Number(e.amount||0),0),over=db.expenses.filter(e=>e.status==="Overdue").reduce((s,e)=>s+Number(e.amount||0),0);
- document.getElementById("app").innerHTML=head("▥","Reports")+`<div class="grid">${stat("₹","Total",total,"All Expenses")}${stat("✓","Paid",paid,"All Paid","green")}${stat("◷","Pending",pending,"All Pending","orange","upcoming")}${stat("⚠","Overdue",over,"All Overdue","red","overdue")}</div>
- <div class="section card"><h2>Category Summary</h2>${db.categories.map(c=>{let v=db.expenses.filter(e=>e.category===c).reduce((s,e)=>s+Number(e.amount||0),0);return`<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #d9e1ec"><span>▤ ${esc(c)}</span><b>${money(v)}</b></div>`}).join("")}</div>
- <div class="toolbar" style="margin-top:14px"><button class="btn" onclick="pdfExpenses()">Save Expense Report as PDF</button><button class="btn secondary" onclick="pdfAccounts()">Save Cash & Banks as PDF</button></div>`;
+    if(old && years.includes(Number(old))){
+      s.value=old;
+    }else{
+      s.value=String(current);
+    }
+  });
 }
 
-/* BACKUP: downloads all current app data as JSON. */
-function backup(){
- save();
- let data={app:"EVR Money Manager",backupVersion:2,createdAt:new Date().toISOString(),...db};
- let blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"}),url=URL.createObjectURL(blob),a=document.createElement("a");
- a.href=url;a.download="EVR_Money_Manager_Backup.json";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);toast("Backup downloaded.");
+function initMonths(){let names=['January','February','March','April','May','June','July','August','September','October','November','December'];['reportMonth','personReportMonth','categoryReportMonth'].forEach(id=>{let s=document.getElementById(id),old=s.value;s.innerHTML=names.map((n,i)=>`<option value="${i+1}">${n}</option>`).join('');s.value=old||new Date().getMonth()+1})}
+
+function openExpense(id=null){editId=id;document.getElementById('modalTitle').textContent=id?'Edit Expense':'Add Expense';fillSelect('eCategory',db.categories);fillSelect('ePerson',db.people);let e=db.expenses.find(x=>x.id===id);
+document.getElementById('eName').value=e?.name||'';document.getElementById('eAmount').value=e?.amount??'';document.getElementById('eCategory').value=e?.category||db.categories[0];document.getElementById('ePerson').value=e?.person||db.people[0];document.getElementById('eDate').value=e?.date||today();document.getElementById('eDueDate').value=e?.dueDate||'';document.getElementById('ePayment').value=e?.payment||'Cash';document.getElementById('eStatus').value=e?.status||'Paid';fillAccountSelect('eAccount');document.getElementById('eAccount').value=e?.accountId||'';document.getElementById('eNotes').value=e?.notes||'';document.getElementById('expenseModal').classList.add('show');toggleExpenseAccount()}
+function closeExpense(){document.getElementById('expenseModal').classList.remove('show');editId=null}
+function saveExpense(){
+  let name=document.getElementById('eName').value.trim(),amount=Number(document.getElementById('eAmount').value);
+  if(!name||!Number.isFinite(amount)||amount<0){alert('Please enter expense name and valid amount.');return}
+  ensureBanks();
+  const old=editId?db.expenses.find(x=>x.id===editId):null;
+  if(old && old.status==='Paid' && old.accountId){const b=db.banks.find(x=>x.id===old.accountId);if(b)b.balance+=Number(old.amount||0)}
+  const status=document.getElementById('eStatus').value;
+  const accountId=status==='Paid'?(document.getElementById('eAccount').value||''):'';
+  if(status==='Paid' && accountId){const b=db.banks.find(x=>x.id===accountId);if(!b)return alert('Selected account not found.');if(Number(b.balance||0)<amount){if(old&&old.status==='Paid'&&old.accountId){const rb=db.banks.find(x=>x.id===old.accountId);if(rb)rb.balance-=Number(old.amount||0)}return alert('Insufficient available balance.')}}
+  if(status==='Paid' && accountId){db.banks.find(x=>x.id===accountId).balance-=amount}
+  let obj={id:editId||Date.now().toString(),name,amount,category:document.getElementById('eCategory').value,person:document.getElementById('ePerson').value,date:document.getElementById('eDate').value,dueDate:document.getElementById('eDueDate').value,payment:document.getElementById('ePayment').value,status,accountId,notes:document.getElementById('eNotes').value.trim(),createdAt:old?.createdAt||new Date().toISOString()};
+  if(editId){let i=db.expenses.findIndex(x=>x.id===editId);if(i>=0)db.expenses[i]=obj}else db.expenses.push(obj);
+  closeExpense();saveDB();renderBanks();toast('Expense saved successfully')
 }
 
-/* RESTORE: accepts this app and older EVR JSON formats. */
-function restore(ev){
- let file=ev.target.files&&ev.target.files[0];if(!file)return;
- let reader=new FileReader();
- reader.onload=function(){
+function markExpensePaid(id){
+  const expense=db.expenses.find(e=>e.id===id);
+  if(!expense)return;
+
+  if(expense.status==="Paid"){
+    toast("Expense is already Paid.");
+    return;
+  }
+
+  if(!confirm('Mark "'+expense.name+'" as Paid?'))return;
+
+  expense.status="Paid";
+  expense.updatedAt=new Date().toISOString();
+
+  saveDB();
+  refreshAll();
+  toast("Expense marked as Paid.");
+}
+
+function deleteExpense(id){if(!confirm('Delete this expense?'))return;db.expenses=db.expenses.filter(x=>x.id!==id);saveDB();refreshAll();toast('Expense deleted')}
+function renderExpenses(){
+  let q=(document.getElementById('search')?.value||'').toLowerCase();
+  let p=document.getElementById('filterPerson')?.value||'';
+  let c=document.getElementById('filterCategory')?.value||'';
+  let st=document.getElementById('filterStatus')?.value||'';
+
+  let a=getExpenses().filter(e=>
+    (!q||(e.name+' '+e.notes+' '+e.category+' '+e.person).toLowerCase().includes(q)) &&
+    (!p||e.person===p) &&
+    (!c||e.category===c) &&
+    (!st||statusOf(e)===st)
+  );
+
+  const total=a.reduce((s,e)=>s+Number(e.amount||0),0);
+  const paid=a.filter(e=>statusOf(e)==='Paid').reduce((s,e)=>s+Number(e.amount||0),0);
+  const pending=a.filter(e=>statusOf(e)==='Pending').reduce((s,e)=>s+Number(e.amount||0),0);
+  const overdue=a.filter(e=>statusOf(e)==='Overdue').reduce((s,e)=>s+Number(e.amount||0),0);
+
+  const summary=document.getElementById('expensesSummary');
+  if(summary){
+    summary.innerHTML=`
+      <div class="stat"><b>Total</b><strong>${money(total)}</strong></div>
+      <div class="stat"><b>Paid</b><strong>${money(paid)}</strong></div>
+      <div class="stat"><b>Unpaid / Pending</b><strong>${money(pending)}</strong></div>
+      <div class="stat"><b>Overdue</b><strong>${money(overdue)}</strong></div>
+      <div class="stat"><b>Expenses</b><strong>${a.length}</strong></div>
+    `;
+  }
+
+  let tb=document.getElementById('expenseTable');
+  tb.innerHTML=a.length
+    ? a.map(e=>`
+      <tr>
+        <td>${fmtDate(e.date)}</td>
+        <td>${esc(e.name)}</td>
+        <td>${money(e.amount)}</td>
+        <td>${esc(e.category)}</td>
+        <td>${esc(e.person)}</td>
+        <td>${esc(e.payment)}</td>
+        <td>${fmtDate(e.dueDate)}</td>
+        <td><span class="status ${statusOf(e).toLowerCase()}">${statusOf(e)}</span></td>
+        <td>
+          <button class="btn light" onclick="openExpense('${e.id}')">Edit</button>
+          <button class="btn danger" onclick="deleteExpense('${e.id}')">Delete</button>
+        </td>
+      </tr>
+    `).join('')
+    : '<tr><td colspan="9" class="empty">No expenses found.</td></tr>';
+}
+
+
+function renderPeople(){
+  document.getElementById('peopleList').innerHTML=db.people.map((p,i)=>`
+    <div class="manage-row">
+      <span><b>${esc(p)}</b></span>
+      <button class="btn danger" onclick="deletePersonByIndex(${i})">Delete</button>
+    </div>
+  `).join('');
+}
+function addPerson(){
+  let n=document.getElementById('newPerson').value.trim();
+  if(!n)return;
+  if(db.people.some(x=>x.toLowerCase()===n.toLowerCase())){
+    return alert('Person already exists.');
+  }
+  db.people.push(n);
+  document.getElementById('newPerson').value='';
+  saveDB();
+  refreshAll();
+  toast('Person added');
+}
+function deletePersonByIndex(index){
+  if(index<0 || index>=db.people.length)return;
+
+  const n=db.people[index];
+
+  if(!confirm('Delete person "'+n+'"? Existing expenses will remain unchanged.')){
+    return;
+  }
+
+  db.people.splice(index,1);
+
+  saveDB();
+  refreshAll();
+
+  toast('Person deleted successfully');
+}
+function renderCategories(){
+  document.getElementById('categoryList').innerHTML=db.categories.map((c,i)=>
+    `<div class="manage-row"><span>${esc(c)}</span><button class="btn danger" onclick="deleteCategoryByIndex(${i})">Delete</button></div>`
+  ).join('');
+}
+function deleteCategoryByIndex(i){
+  if(i<0 || i>=db.categories.length)return;
+  const n=db.categories[i];
+  if(!confirm('Delete category "'+n+'"? Existing expenses will remain unchanged.'))return;
+  db.categories.splice(i,1);
+  saveDB();
+  toast('Category deleted successfully');
+}
+function addCategory(){let n=document.getElementById('newCategory').value.trim();if(!n)return;if(db.categories.some(x=>x.toLowerCase()===n.toLowerCase()))return alert('Category already exists.');db.categories.push(n);document.getElementById('newCategory').value='';saveDB();toast('Category added')}
+function deleteCategory(n){
+  if(!confirm('Delete category "'+n+'"? Existing expenses will remain unchanged.')) return;
+  db.categories=db.categories.filter(x=>x!==n);
+  saveDB();
+  toast('Category deleted successfully');
+}
+
+function renderDashboard(){
+  const now=today().slice(0,7);const a=getExpenses().filter(e=>(e.date||'').startsWith(now));
+  const sum=a.reduce((s,e)=>s+Number(e.amount||0),0),paid=a.filter(e=>statusOf(e)==='Paid').reduce((s,e)=>s+Number(e.amount||0),0),pending=a.filter(e=>statusOf(e)==='Pending').reduce((s,e)=>s+Number(e.amount||0),0),over=a.filter(e=>statusOf(e)==='Overdue').reduce((s,e)=>s+Number(e.amount||0),0);
+  document.getElementById('totalAmount').textContent=money(sum);document.getElementById('paidAmount').textContent=money(paid);document.getElementById('pendingAmount').textContent=money(pending);document.getElementById('overdueAmount').textContent=money(over);document.getElementById('peopleCount').textContent=db.people.length;
+  document.getElementById('recent').innerHTML=a.slice().sort((x,y)=>(y.date||'').localeCompare(x.date||'')).slice(0,8).map(e=>`<div class="manage-row"><span><b>${esc(e.name)}</b><br><small>${fmtDate(e.date)} · ${esc(e.person)}</small></span><b>${money(e.amount)}</b></div>`).join('')||'<div class="empty">No transactions this month.</div>';
+  const d=new Date();d.setHours(0,0,0,0);const end=new Date(d);end.setDate(end.getDate()+7);const endS=end.toISOString().slice(0,10);
+  let up=getExpenses().filter(e=>statusOf(e)==='Pending'&&e.dueDate&&e.dueDate>=today()&&e.dueDate<endS).sort((x,y)=>(x.dueDate||'').localeCompare(y.dueDate||''));
+  document.getElementById('dashboardUpcoming').innerHTML=up.map(e=>`<div class="manage-row"><span><b>${esc(e.name)}</b><br><small>Due ${fmtDate(e.dueDate)}</small></span><b>${money(e.amount)}</b></div>`).join('')||'<div class="empty">No expenses due in the next 7 days.</div>';
+  const ut=document.getElementById('upcomingTotal');if(ut)ut.textContent=up.length+' expenses · '+money(up.reduce((s,e)=>s+Number(e.amount||0),0));
+}
+
+function upcomingExpenseCard(e){
+  return `
+    <div class="manage-row" style="align-items:center;gap:12px;flex-wrap:wrap">
+      <div style="flex:1;min-width:220px">
+        <b>${esc(e.name)}</b><br>
+        <small>${esc(e.person)} · ${esc(e.category)} · Due ${fmtDate(e.dueDate)} · ${esc(e.payment)}</small><br>
+        <span class="status ${statusOf(e).toLowerCase()}">${statusOf(e)}</span>
+        ${e.notes ? `<br><small>${esc(e.notes)}</small>` : ''}
+      </div>
+      <div style="font-weight:bold;white-space:nowrap">${money(e.amount)}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn success" onclick="markExpensePaid('${e.id}')">Paid</button>
+        <button class="btn light" onclick="openExpense('${e.id}')">Edit</button>
+        <button class="btn danger" onclick="deleteExpense('${e.id}')">Delete</button>
+      </div>
+    </div>`;
+}
+
+
+function renderUpcoming(){
+  const all=getExpenses();
+  const upcoming=all.filter(e=>statusOf(e)==='Pending');
+  const overdue=all.filter(e=>statusOf(e)==='Overdue');
+
+  const upTotal=upcoming.reduce((s,e)=>s+Number(e.amount||0),0);
+  const ovTotal=overdue.reduce((s,e)=>s+Number(e.amount||0),0);
+
+  const upCount=document.getElementById('upcomingTotal');
+  if(upCount) upCount.textContent=upcoming.length+" expenses · "+money(upTotal);
+
+  const ovCount=document.getElementById('overdueTotal');
+  if(ovCount) ovCount.textContent=overdue.length+" expenses · "+money(ovTotal);
+
+  document.getElementById('upcomingList').innerHTML =
+    upcoming.map(upcomingExpenseCard).join('') ||
+    '<div class="empty">No upcoming expenses.</div>';
+
+  document.getElementById('overdueList').innerHTML = overdue.map(upcomingExpenseCard).join('') || '<div class="empty">No overdue expenses.</div>';const op=document.getElementById('overduePageList');if(op)op.innerHTML=overdue.map(upcomingExpenseCard).join('') || '<div class="empty">No overdue expenses.</div>';
+}
+
+
+function inPeriod(e,type){let d=e.date;if(!d)return false;let y=+d.slice(0,4),m=+d.slice(5,7);if(type==='daily')return d===document.getElementById('reportDate').value;if(type==='monthly')return y===+document.getElementById('reportYear').value&&m===+document.getElementById('reportMonth').value;return y===+document.getElementById('reportYear').value}
+function reportData(){return getExpenses().filter(e=>inPeriod(e,document.getElementById('reportType').value))}
+function reportTitle(){let t=document.getElementById('reportType').value;if(t==='daily')return 'Daily Report - '+fmtDate(document.getElementById('reportDate').value);if(t==='monthly')return 'Monthly Report - '+document.getElementById('reportMonth').selectedOptions[0].text+' '+document.getElementById('reportYear').value;return 'Yearly Report - '+document.getElementById('reportYear').value}
+function renderPeriodReport(){let t=document.getElementById('reportType').value;document.getElementById('reportDateBox').style.display=t==='daily'?'flex':'none';document.getElementById('reportMonthBox').style.display=t==='monthly'?'flex':'none';let a=reportData(),sum=a.reduce((s,e)=>s+e.amount,0);document.getElementById('periodReport').innerHTML=`<h3>${reportTitle()}</h3><div class="report-stats"><div class="report-stat">Total Expenses<strong>${money(sum)}</strong></div><div class="report-stat">Number of Expenses<strong>${a.length}</strong></div><div class="report-stat">Average Expense<strong>${money(a.length?sum/a.length:0)}</strong></div></div>${reportTable(a)}`}
+function reportTable(a){return a.length?`<div class="table-wrap"><table><thead><tr><th>Date</th><th>Expense</th><th>Amount</th><th>Category</th><th>Person</th><th>Payment</th><th>Status</th></tr></thead><tbody>${a.map(e=>`<tr><td>${fmtDate(e.date)}</td><td>${esc(e.name)}</td><td>${money(e.amount)}</td><td>${esc(e.category)}</td><td>${esc(e.person)}</td><td>${esc(e.payment)}</td><td>${statusOf(e)}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">No expense data for this period.</div>'}
+
+function filterByPersonPeriod(rows, type){
+  const date=document.getElementById("personReportDate")?.value || today();
+  const month=document.getElementById("personReportMonth")?.value;
+  const year=document.getElementById("personReportYear")?.value;
+
+  if(type==="daily") return rows.filter(e=>e.date===date);
+  if(type==="monthly"){
+    const prefix=String(year)+"-"+String(month).padStart(2,"0");
+    return rows.filter(e=>e.date.startsWith(prefix));
+  }
+  if(type==="yearly") return rows.filter(e=>e.date.startsWith(String(year)));
+  return rows;
+}
+
+function renderPersonReport(){
+  const person=document.getElementById("personReportPerson").value;
+  const type=document.getElementById("personReportType").value;
+
+  document.getElementById("personReportDateWrap").style.display = type==="daily" ? "flex" : "none";
+  document.getElementById("personReportMonthWrap").style.display = type==="monthly" ? "flex" : "none";
+  document.getElementById("personReportYearWrap").style.display = (type==="yearly" || type==="monthly") ? "flex" : "none";
+
+  if(!person){
+    document.getElementById("personReport").innerHTML='<div class="empty">Select a person.</div>';
+    return;
+  }
+
+  let rows=getExpenses().filter(e=>e.person===person);
+  rows=filterByPersonPeriod(rows,type);
+
+  const total=rows.reduce((s,e)=>s+Number(e.amount||0),0);
+
+  let label="All Time";
+  if(type==="daily") label="Daily - "+document.getElementById("personReportDate").value;
+  if(type==="monthly") label="Monthly - "+document.getElementById("personReportMonth").selectedOptions[0].text+" "+document.getElementById("personReportYear").value;
+  if(type==="yearly") label="Yearly - "+document.getElementById("personReportYear").value;
+
+  document.getElementById("personReport").innerHTML=`
+    <h3>${esc(person)} — ${esc(label)}</h3>
+    <div class="report-stats">
+      <div class="report-stat">Total<strong>${money(total)}</strong></div>
+      <div class="report-stat">Expenses<strong>${rows.length}</strong></div>
+      <div class="report-stat">Average<strong>${money(rows.length?total/rows.length:0)}</strong></div>
+    </div>
+    ${reportTable(rows)}
+  `;
+}
+
+function filterByCategoryPeriod(rows,type){
+  const date=document.getElementById("categoryReportDate")?.value || today();
+  const month=document.getElementById("categoryReportMonth")?.value;
+  const year=document.getElementById("categoryReportYear")?.value;
+
+  if(type==="daily") return rows.filter(e=>e.date===date);
+  if(type==="monthly"){
+    const prefix=String(year)+"-"+String(month).padStart(2,"0");
+    return rows.filter(e=>e.date.startsWith(prefix));
+  }
+  if(type==="yearly") return rows.filter(e=>e.date.startsWith(String(year)));
+  return rows;
+}
+
+function renderCategoryReport(){
+  const category=document.getElementById("categoryReportCategory").value;
+  const type=document.getElementById("categoryReportType").value;
+
+  document.getElementById("categoryReportDateWrap").style.display = type==="daily" ? "flex" : "none";
+  document.getElementById("categoryReportMonthWrap").style.display = type==="monthly" ? "flex" : "none";
+  document.getElementById("categoryReportYearWrap").style.display = (type==="yearly" || type==="monthly") ? "flex" : "none";
+
+  if(!category){
+    document.getElementById("categoryReport").innerHTML='<div class="empty">Select a category.</div>';
+    return;
+  }
+
+  let rows=getExpenses().filter(e=>e.category===category);
+  rows=filterByCategoryPeriod(rows,type);
+
+  const total=rows.reduce((s,e)=>s+Number(e.amount||0),0);
+
+  let label="All Time";
+  if(type==="daily") label="Daily - "+document.getElementById("categoryReportDate").value;
+  if(type==="monthly") label="Monthly - "+document.getElementById("categoryReportMonth").selectedOptions[0].text+" "+document.getElementById("categoryReportYear").value;
+  if(type==="yearly") label="Yearly - "+document.getElementById("categoryReportYear").value;
+
+  document.getElementById("categoryReport").innerHTML=`
+    <h3>${esc(category)} — ${esc(label)}</h3>
+    <div class="report-stats">
+      <div class="report-stat">Total<strong>${money(total)}</strong></div>
+      <div class="report-stat">Expenses<strong>${rows.length}</strong></div>
+      <div class="report-stat">Average<strong>${money(rows.length?total/rows.length:0)}</strong></div>
+    </div>
+    ${reportTable(rows)}
+  `;
+}
+
+
+function isInSelectedPeriod(dateString, period){
+  const d = new Date(dateString);
+  const now = new Date();
+
+  if(period === 'week'){
+    const start = new Date(now);
+    const day = start.getDay(); // Sunday = 0
+    const diff = day === 0 ? -6 : 1 - day; // Monday start
+    start.setDate(start.getDate() + diff);
+    start.setHours(0,0,0,0);
+
+    const end = new Date(start);
+    end.setDate(end.getDate() + 7);
+
+    return d >= start && d < end;
+  }
+
+  return true;
+}
+
+function renderReports(){
+  initMonths();
+  initReportYears();
+  fillSelect('personReportPerson',db.people);
+  fillSelect('categoryReportCategory',db.categories);
+
+  const now=today();
+  const currentMonth=now.slice(0,7);
+
+  if(!document.getElementById('reportDate').value)
+    document.getElementById('reportDate').value=now;
+
+  if(!document.getElementById('personReportDate').value)
+    document.getElementById('personReportDate').value=now;
+
+  if(!document.getElementById('categoryReportDate').value)
+    document.getElementById('categoryReportDate').value=now;
+
+  if(!document.getElementById('personReportMonth').value)
+    document.getElementById('personReportMonth').value=Number(now.slice(5,7));
+
+  if(!document.getElementById('categoryReportMonth').value)
+    document.getElementById('categoryReportMonth').value=Number(now.slice(5,7));
+
+  renderPeriodReport();
+  renderPersonReport();
+  renderCategoryReport();;renderUpcomingReport()}
+
+function csvEscape(v){return '"'+String(v??'').replace(/"/g,'""')+'"'}
+function downloadCSV(rows,name){let head=['Date','Expense','Amount INR','Category','Person','Payment Mode','Due Date','Status','Notes'];let lines=[head.map(csvEscape).join(',')].concat(rows.map(e=>[e.date,e.name,e.amount,e.category,e.person,e.payment,e.dueDate,statusOf(e),e.notes].map(csvEscape).join(',')));let blob=new Blob(["\ufeff"+lines.join('\r\n')],{type:'text/csv;charset=utf-8'}),u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),500)}
+function periodCSV(){downloadCSV(reportData(),'EVR-'+document.getElementById('reportType').value+'-report.csv')}
+function personCSV(){let p=document.getElementById('personReportPerson').value;downloadCSV(getExpenses().filter(e=>e.person===p),'EVR-'+p.replace(/\s+/g,'-')+'-report.csv')}
+
+
+function pdfEscapeText(text){
+  return String(text??"")
+    .replace(/\\/g,"\\\\")
+    .replace(/\(/g,"\\(")
+    .replace(/\)/g,"\\)")
+    .replace(/\r/g," ")
+    .replace(/\n/g," ");
+}
+
+function pdfMoney(n){
+  return "INR "+Number(n||0).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+
+function pdfWrap(text,maxChars){
+  const words=String(text??"").split(/\s+/);
+  const lines=[];
+  let line="";
+  for(const word of words){
+    const test=line?line+" "+word:word;
+    if(test.length>maxChars && line){
+      lines.push(line);
+      line=word;
+    }else{
+      line=test;
+    }
+  }
+  if(line)lines.push(line);
+  return lines.length?lines:[""];
+}
+
+function createPdfDocument(title,sections){
+  /*
+    Pure JavaScript PDF writer.
+    This does not depend on an external PDF library, so it also works
+    when the HTML file is opened locally or from GitHub Pages.
+  */
+  const W=595,H=842,M=32;
+  const objects=[];
+  const addObject=obj=>{objects.push(obj);return objects.length;};
+
+  const fontRegular=addObject(
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>'
+  );
+  const fontBold=addObject(
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>'
+  );
+
+  const pageIds=[];
+
+  function esc(v){return pdfEscapeText(v)}
+
+  function addText(stream,text,x,y,size=9,bold=false){
+    stream.push(
+      `BT /${bold?'F2':'F1'} ${size} Tf 1 0 0 1 ${x} ${y} Tm (${esc(text)}) Tj ET`
+    );
+  }
+
+  function addLine(stream,x1,y1,x2,y2){
+    stream.push(`${x1} ${y1} m ${x2} ${y2} l S`);
+  }
+
+  function addRect(stream,x,y,w,h,fill=false){
+    if(fill) stream.push(`${x} ${y} ${w} ${h} re f`);
+    else stream.push(`${x} ${y} ${w} ${h} re S`);
+  }
+
+  function drawBox(stream,x,y,w,h,label,value){
+    addRect(stream,x,y,w,h,false);
+    addText(stream,label,x+8,y+h-16,8,false);
+    addText(stream,value,x+8,y+12,11,true);
+  }
+
+  function drawTable(stream,rows,columns,yStart){
+    const usable=W-2*M;
+    const widths=columns.map(c=>usable*c.w);
+    let y=yStart;
+    const headerH=22;
+    const rowH=20;
+
+    stream.push("0.94 g");
+    let x=M;
+    columns.forEach((c,i)=>{
+      addRect(stream,x,y-headerH,widths[i],headerH,true);
+      x+=widths[i];
+    });
+    stream.push("0 g");
+
+    x=M;
+    columns.forEach((c,i)=>{
+      addRect(stream,x,y-headerH,widths[i],headerH,false);
+      addText(stream,c.label,x+4,y-15,7,true);
+      x+=widths[i];
+    });
+
+    y-=headerH;
+
+    if(!rows.length){
+      addRect(stream,M,y-rowH,usable,rowH,false);
+      addText(stream,"No records found.",M+6,y-14,8,false);
+      return y-rowH;
+    }
+
+    for(const row of rows){
+      x=M;
+      columns.forEach((c,i)=>{
+        addRect(stream,x,y-rowH,widths[i],rowH,false);
+        const value=String(c.get(row)??"");
+        const wrapped=pdfWrap(value,Math.max(8,Math.floor(widths[i]/4.2)));
+        addText(stream,wrapped[0].slice(0,Math.max(8,Math.floor(widths[i]/4.2))),x+4,y-14,7,false);
+        x+=widths[i];
+      });
+      y-=rowH;
+      if(y<58) break;
+    }
+    return y;
+  }
+
+  function buildPage(pageSections,pageNumber,totalPages){
+    const s=[];
+    addText(s,title,M,H-M,18,true);
+    addText(s,"EVR Money Manager",M,H-M-18,9,false);
+    addText(s,"Generated: "+new Date().toLocaleString(),M,H-M-32,8,false);
+    addText(s,`Page ${pageNumber} of ${totalPages}`,W-M-75,H-M-18,8,false);
+    addLine(s,M,H-M-40,W-M,H-M-40);
+
+    let y=H-M-58;
+
+    for(const section of pageSections){
+      if(y<90) break;
+
+      addText(s,section.heading,M,y,12,true);
+      y-=18;
+
+      if(section.boxes){
+        let x=M;
+        const gap=8;
+        const bw=(W-2*M-gap*(section.boxes.length-1))/section.boxes.length;
+        section.boxes.forEach(b=>{
+          drawBox(s,x,y-58,bw,58,b.label,b.value);
+          x+=bw+gap;
+        });
+        y-=70;
+      }
+
+      if(section.note){
+        addText(s,section.note,M,y,8,false);
+        y-=16;
+      }
+
+      if(section.rows){
+        y=drawTable(s,section.rows,section.columns,y);
+        y-=18;
+      }
+
+      if(section.lines){
+        for(const line of section.lines){
+          const wrapped=pdfWrap(line,100);
+          for(const w of wrapped){
+            if(y<55) break;
+            addText(s,w,M,y,8,false);
+            y-=12;
+          }
+        }
+        y-=6;
+      }
+    }
+
+    const stream=s.join("\n");
+    const contentId=addObject(
+      `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`
+    );
+    const pageId=addObject(
+      `<< /Type /Page /Parent 0 0 R /MediaBox [0 0 ${W} ${H}] `+
+      `/Resources << /Font << /F1 ${fontRegular} 0 R /F2 ${fontBold} 0 R >> >> `+
+      `/Contents ${contentId} 0 R >>`
+    );
+    pageIds.push(pageId);
+  }
+
+  /* Estimate pages from the section sizes, then render. */
+  const allPages=[];
+  let current=[], used=0;
+  for(const sec of sections){
+    const estimate=25+(sec.boxes?75:0)+(sec.rows?(25+sec.rows.length*20):0)+(sec.lines?(sec.lines.length*12):0)+30;
+    if(current.length && used+estimate>700){
+      allPages.push(current);
+      current=[]; used=0;
+    }
+    current.push(sec); used+=estimate;
+  }
+  if(current.length||!allPages.length)allPages.push(current);
+
+  allPages.forEach((p,i)=>buildPage(p,i+1,allPages.length));
+
+  const pagesObj=addObject(
+    `<< /Type /Pages /Kids [${pageIds.map(id=>id+" 0 R").join(" ")}] /Count ${pageIds.length} >>`
+  );
+
+  /* Patch each page's Parent now that Pages object exists. */
+  for(const id of pageIds){
+    objects[id-1]=objects[id-1].replace("/Parent 0 0 R",`/Parent ${pagesObj} 0 R`);
+  }
+
+  const catalog=addObject(`<< /Type /Catalog /Pages ${pagesObj} 0 R >>`);
+
+  let pdf="%PDF-1.4\n%\xE2\xE3\xCF\xD3\n";
+  const offsets=[0];
+  objects.forEach((obj,i)=>{
+    offsets[i+1]=pdf.length;
+    pdf+=(i+1)+" 0 obj\n"+obj+"\nendobj\n";
+  });
+
+  const xref=pdf.length;
+  pdf+=`xref\n0 ${objects.length+1}\n0000000000 65535 f \n`;
+  for(let i=1;i<=objects.length;i++){
+    pdf+=String(offsets[i]).padStart(10,"0")+" 00000 n \n";
+  }
+  pdf+=`trailer\n<< /Size ${objects.length+1} /Root ${catalog} 0 R >>\nstartxref\n${xref}\n%%EOF`;
+  return pdf;
+}
+
+function downloadPdfBytes(pdf,filename){
   try{
-   let x=JSON.parse(reader.result);if(Array.isArray(x))x={expenses:x};
-   let expenses=Array.isArray(x.expenses)?x.expenses:(Array.isArray(x.expenseList)?x.expenseList:(Array.isArray(x.items)?x.items:[]));
-   let accounts=Array.isArray(x.accounts)?x.accounts:(Array.isArray(x.banks)?x.banks:(Array.isArray(x.bankAccounts)?x.bankAccounts:[]));
-   if(!expenses.length&&!accounts.length&&!Array.isArray(x.people)&&!Array.isArray(x.categories))throw new Error("No EVR data");
-   if(!accounts.length)accounts=defaultDB().accounts;
-   let clean=normalizeDB({expenses:expenses,accounts:accounts,
-     people:Array.isArray(x.people)?x.people:(Array.isArray(x.persons)?x.persons:["Viju"]),
-     categories:Array.isArray(x.categories)?x.categories:(Array.isArray(x.cats)?x.cats:DEFAULT_CATS)});
-   if(!confirm("Restore this backup? Current data in this app will be replaced.")){ev.target.value="";return}
-   db=clean;save();render();toast("Backup restored successfully.");
-  }catch(err){console.error(err);alert("This backup could not be read. Please select an EVR JSON backup file.")}
-  finally{ev.target.value=""}
- };
- reader.readAsText(file);
+    const blob=new Blob([pdf],{type:"application/pdf"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");
+    a.href=url;
+    a.download=filename;
+    a.style.display="none";
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>{
+      a.remove();
+      URL.revokeObjectURL(url);
+    },2000);
+  }catch(error){
+    console.error(error);
+    alert("Could not save the PDF. Please try again.");
+  }
 }
 
-/* PDF: opens a clean print page. In the browser print dialog choose "Save as PDF". */
-function pdfExpenses(){
- let rows=db.expenses.slice().sort((a,b)=>String(b.date).localeCompare(String(a.date))),body=rows.map(e=>`<tr><td>${esc(e.date)}</td><td>${esc(e.name)}</td><td>${money(e.amount)}</td><td>${esc(e.category)}</td><td>${esc(e.person)}</td><td>${esc(e.payment)}</td><td>${esc(e.status)}</td></tr>`).join("");
- printPDF("EVR Money Manager - Expense Report",`<div class="summary">Total: ${money(rows.reduce((s,e)=>s+Number(e.amount||0),0))} &nbsp; | &nbsp; Expenses: ${rows.length}</div><table><tr><th>Date</th><th>Expense</th><th>Amount</th><th>Category</th><th>Person</th><th>Payment</th><th>Status</th></tr>${body}</table>`);
-}
-function pdfAccounts(){
- let body=db.accounts.map(a=>`<tr><td>${a.type==="bank"?"Bank":"Cash / Wallet"}</td><td>${esc(a.name)}</td><td>${money(a.balance)}</td></tr>`).join("");
- printPDF("EVR Money Manager - Cash & Banks",`<table><tr><th>Type</th><th>Account</th><th>Balance</th></tr>${body}</table>`);
-}
-function printPDF(title,content){
- let w=window.open("","_blank","width=1000,height=800");
- if(!w){alert("Please allow pop-ups for EVR Money Manager, then press Save as PDF again.");return}
- w.document.open();w.document.write(`<!doctype html><html><head><meta charset="UTF-8"><title>${esc(title)}</title><style>@page{size:A4;margin:12mm}body{font-family:Arial;color:#111;font-size:12px}h1{font-size:22px;margin:0 0 5px}h3{color:#555;margin:0 0 14px}.summary{border:1px solid #555;background:#eef3f8;padding:10px;margin:10px 0;font-weight:bold}table{width:100%;border-collapse:collapse;font-size:10px}th,td{border:1px solid #555;padding:7px;text-align:left}th{background:#e9eef5}tr:nth-child(even){background:#f7f7f7}</style></head><body><h1>${esc(title)}</h1><h3>Generated ${esc(new Date().toLocaleString("en-IN"))}</h3>${content}</body></html>`);
- w.document.close();w.focus();setTimeout(()=>w.print(),500);
+function expensePdfRows(rows){
+  return rows.map(e=>({
+    date:fmtDate(e.date),
+    name:e.name||"",
+    amount:pdfMoney(e.amount),
+    category:e.category||"",
+    person:e.person||"",
+    payment:e.payment||"",
+    status:statusOf(e),
+    due:fmtDate(e.dueDate)
+  }));
 }
 
-function render(){
- let p=location.hash.slice(1)||"dashboard";
- document.querySelectorAll(".nav").forEach(x=>x.classList.toggle("active",x.dataset.p===p));
- ({dashboard,expenses,upcoming,overdue,people,categories,banks,reports}[p]||dashboard)();
- window.scrollTo(0,0);
+function makeExpensePdf(title,rows,filename,extraSections=[]){
+  const total=rows.reduce((s,e)=>s+Number(e.amount||0),0);
+  const paid=rows.filter(e=>statusOf(e)==="Paid").reduce((s,e)=>s+Number(e.amount||0),0);
+  const pending=rows.filter(e=>statusOf(e)==="Pending").reduce((s,e)=>s+Number(e.amount||0),0);
+  const overdue=rows.filter(e=>statusOf(e)==="Overdue").reduce((s,e)=>s+Number(e.amount||0),0);
+
+  const sections=[{
+    heading:"Summary",
+    boxes:[
+      {label:"Total Expenses",value:pdfMoney(total)},
+      {label:"Paid",value:pdfMoney(paid)},
+      {label:"Pending",value:pdfMoney(pending)},
+      {label:"Overdue",value:pdfMoney(overdue)}
+    ],
+    note:`Number of expenses: ${rows.length}`
+  },{
+    heading:"Expense Details",
+    rows:expensePdfRows(rows),
+    columns:[
+      {label:"Date",w:.12,get:r=>r.date},
+      {label:"Name",w:.22,get:r=>r.name},
+      {label:"Amount",w:.13,get:r=>r.amount},
+      {label:"Category",w:.14,get:r=>r.category},
+      {label:"Person",w:.12,get:r=>r.person},
+      {label:"Payment",w:.11,get:r=>r.payment},
+      {label:"Status",w:.08,get:r=>r.status},
+      {label:"Due",w:.08,get:r=>r.due}
+    ]
+  },...extraSections];
+
+  downloadPdfBytes(createPdfDocument(title,sections),filename);
 }
-document.querySelectorAll(".nav").forEach(x=>x.addEventListener("click",()=>go(x.dataset.p)));
-document.getElementById("modal").addEventListener("click",e=>{if(e.target.id==="modal")closeModal()});
-addEventListener("hashchange",render);
-addEventListener("storage",()=>{db=loadDB();render()});
-render();
+
+function saveArrayPDF(title,rows,filename){
+  makeExpensePdf(title,rows,filename);
+}
+
+function bankBalanceSections(){
+  ensureBanks();
+  const total=db.banks.reduce((s,b)=>s+Number(b.balance||0),0);
+  return [{
+    heading:"Cash & Bank Balances",
+    boxes:db.banks.slice(0,4).map(b=>({
+      label:b.name,
+      value:pdfMoney(b.balance)
+    })),
+    note:`Total available across all accounts: ${pdfMoney(total)}`
+  }];
+}
+
+function bankPdfRows(){
+  ensureBanks();
+  return db.bankTransactions.slice().reverse().map(t=>({
+    date:fmtDate(t.date),
+    name:t.type||"",
+    amount:pdfMoney(t.amount),
+    category:"Bank Transaction",
+    person:"",
+    payment:(t.fromName||"-")+" → "+(t.toName||"-"),
+    status:"Completed",
+    due:"",
+    note:t.note||""
+  }));
+}
+
+function saveBankTransactionsPDF(){
+  const rows=bankPdfRows();
+  const balanceSections=bankBalanceSections();
+  const txSection={
+    heading:"Bank Transaction Details",
+    rows,
+    columns:[
+      {label:"Date",w:.12,get:r=>r.date},
+      {label:"Type",w:.17,get:r=>r.name},
+      {label:"From → To",w:.25,get:r=>r.payment},
+      {label:"Amount",w:.15,get:r=>r.amount},
+      {label:"Status",w:.11,get:r=>r.status},
+      {label:"Note",w:.20,get:r=>r.note}
+    ]
+  };
+  downloadPdfBytes(
+    createPdfDocument("EVR Cash & Banks Report",[...balanceSections,txSection]),
+    "EVR-Cash-Banks-Report.pdf"
+  );
+}
+
+function saveDashboardPDF(){
+  const month=document.getElementById('dashboardMonth')?.selectedOptions[0]?.text||'';
+  const year=document.getElementById('dashboardYear')?.value||'';
+  const ym=String(year)+"-"+String(document.getElementById('dashboardMonth')?.value||'').padStart(2,'0');
+  const rows=getExpenses().filter(e=>(e.date||'').startsWith(ym));
+
+  const total=rows.reduce((s,e)=>s+Number(e.amount||0),0);
+  const paid=rows.filter(e=>statusOf(e)==="Paid").reduce((s,e)=>s+Number(e.amount||0),0);
+  const pending=rows.filter(e=>statusOf(e)==="Pending").reduce((s,e)=>s+Number(e.amount||0),0);
+  const overdue=rows.filter(e=>statusOf(e)==="Overdue").reduce((s,e)=>s+Number(e.amount||0),0);
+
+  ensureBanks();
+  const bankTotal=db.banks.reduce((s,b)=>s+Number(b.balance||0),0);
+
+  const upcoming=getExpenses()
+    .filter(e=>statusOf(e)==="Pending"&&e.dueDate&&e.dueDate>=today())
+    .sort((a,b)=>(a.dueDate||'').localeCompare(b.dueDate||''));
+
+  const sections=[
+    {
+      heading:"Dashboard Summary",
+      boxes:[
+        {label:"Total Expenses",value:pdfMoney(total)},
+        {label:"Paid",value:pdfMoney(paid)},
+        {label:"Pending",value:pdfMoney(pending)},
+        {label:"Overdue",value:pdfMoney(overdue)}
+      ],
+      note:`Period: ${month} ${year}`
+    },
+    {
+      heading:"Cash & Bank Balances",
+      boxes:db.banks.slice(0,4).map(b=>({label:b.name,value:pdfMoney(b.balance)})),
+      note:`Total available balance: ${pdfMoney(bankTotal)}`
+    },
+    {
+      heading:"Upcoming Expenses",
+      rows:expensePdfRows(upcoming),
+      columns:[
+        {label:"Due Date",w:.13,get:r=>r.due},
+        {label:"Name",w:.24,get:r=>r.name},
+        {label:"Amount",w:.15,get:r=>r.amount},
+        {label:"Category",w:.15,get:r=>r.category},
+        {label:"Person",w:.13,get:r=>r.person},
+        {label:"Payment",w:.12,get:r=>r.payment},
+        {label:"Status",w:.08,get:r=>r.status}
+      ]
+    }
+  ];
+
+  downloadPdfBytes(
+    createPdfDocument(`EVR Dashboard - ${month} ${year}`,sections),
+    "EVR-Dashboard.pdf"
+  );
+}
+
+function saveExpensesPDF(){
+  const rows=getExpenses();
+  makeExpensePdf("EVR Expenses Report",rows,"EVR-Expenses.pdf");
+}
+
+function saveUpcomingPDF(){
+  const upcoming=getExpenses()
+    .filter(e=>statusOf(e)==="Pending"&&e.dueDate&&e.dueDate>=today())
+    .sort((a,b)=>(a.dueDate||'').localeCompare(b.dueDate||''));
+
+  const overdue=getExpenses()
+    .filter(e=>statusOf(e)==="Overdue")
+    .sort((a,b)=>(a.dueDate||'').localeCompare(b.dueDate||''));
+
+  const sections=[
+    {
+      heading:"Upcoming Expenses",
+      boxes:[
+        {label:"Upcoming Count",value:String(upcoming.length)},
+        {label:"Upcoming Total",value:pdfMoney(upcoming.reduce((s,e)=>s+Number(e.amount||0),0))}
+      ],
+      rows:expensePdfRows(upcoming),
+      columns:[
+        {label:"Due Date",w:.13,get:r=>r.due},
+        {label:"Name",w:.25,get:r=>r.name},
+        {label:"Amount",w:.15,get:r=>r.amount},
+        {label:"Category",w:.15,get:r=>r.category},
+        {label:"Person",w:.12,get:r=>r.person},
+        {label:"Payment",w:.12,get:r=>r.payment},
+        {label:"Status",w:.08,get:r=>r.status}
+      ]
+    },
+    {
+      heading:"Overdue Expenses",
+      boxes:[
+        {label:"Overdue Count",value:String(overdue.length)},
+        {label:"Overdue Total",value:pdfMoney(overdue.reduce((s,e)=>s+Number(e.amount||0),0))}
+      ],
+      rows:expensePdfRows(overdue),
+      columns:[
+        {label:"Due Date",w:.13,get:r=>r.due},
+        {label:"Name",w:.25,get:r=>r.name},
+        {label:"Amount",w:.15,get:r=>r.amount},
+        {label:"Category",w:.15,get:r=>r.category},
+        {label:"Person",w:.12,get:r=>r.person},
+        {label:"Payment",w:.12,get:r=>r.payment},
+        {label:"Status",w:.08,get:r=>r.status}
+      ]
+    }
+  ];
+
+  downloadPdfBytes(
+    createPdfDocument("EVR Upcoming & Overdue Expenses",sections),
+    "EVR-Upcoming-Overdue.pdf"
+  );
+}
+
+function allExpensesPDF(){
+  makeExpensePdf("EVR All Expenses",getExpenses(),"EVR-All-Expenses.pdf");
+}
+
+function reportData(){
+  const type=document.getElementById("reportType").value;
+  if(type==="daily"){
+    const d=document.getElementById("reportDate").value;
+    return getExpenses().filter(e=>e.date===d);
+  }
+  if(type==="monthly"){
+    const ym=document.getElementById("reportYear").value+"-"+String(document.getElementById("reportMonth").value).padStart(2,"0");
+    return getExpenses().filter(e=>e.date.startsWith(ym));
+  }
+  const y=String(document.getElementById("reportYear").value);
+  return getExpenses().filter(e=>e.date.startsWith(y));
+}
+
+function reportTitle(){
+  const type=document.getElementById("reportType").value;
+  if(type==="daily")return "Daily Report - "+document.getElementById("reportDate").value;
+  if(type==="monthly")return "Monthly Report - "+document.getElementById("reportMonth").selectedOptions[0].text+" "+document.getElementById("reportYear").value;
+  return "Yearly Report - "+document.getElementById("reportYear").value;
+}
+
+function periodPDF(){
+  saveArrayPDF(reportTitle(),reportData(),"EVR-"+document.getElementById("reportType").value+"-report.pdf");
+}
+
+function personPDF(){
+  const person=document.getElementById("personReportPerson").value;
+  if(!person){alert("Select a person first.");return;}
+
+  const type=document.getElementById("personReportType").value;
+  let rows=getExpenses().filter(e=>e.person===person);
+
+  if(type==="daily"){
+    const d=document.getElementById("personReportDate").value;
+    rows=rows.filter(e=>e.date===d);
+  }
+
+  if(type==="monthly"){
+    const prefix=String(document.getElementById("personReportYear").value)+"-"+String(document.getElementById("personReportMonth").value).padStart(2,"0");
+    rows=rows.filter(e=>e.date.startsWith(prefix));
+  }
+
+  if(type==="yearly"){
+    rows=rows.filter(e=>e.date.startsWith(String(document.getElementById("personReportYear").value)));
+  }
+
+  saveArrayPDF(
+    "Person Report - "+person,
+    rows,
+    "EVR-Person-"+person.replace(/[^a-z0-9_-]+/gi,"-")+".pdf"
+  );
+}
+
+function categoryPDF(){
+  const category=document.getElementById("categoryReportCategory").value;
+  if(!category){alert("Select a category first.");return;}
+
+  const type=document.getElementById("categoryReportType").value;
+  let rows=getExpenses().filter(e=>e.category===category);
+
+  if(type==="daily"){
+    const d=document.getElementById("categoryReportDate").value;
+    rows=rows.filter(e=>e.date===d);
+  }
+
+  if(type==="monthly"){
+    const prefix=String(document.getElementById("categoryReportYear").value)+"-"+String(document.getElementById("categoryReportMonth").value).padStart(2,"0");
+    rows=rows.filter(e=>e.date.startsWith(prefix));
+  }
+
+  if(type==="yearly"){
+    rows=rows.filter(e=>e.date.startsWith(String(document.getElementById("categoryReportYear").value)));
+  }
+
+  saveArrayPDF(
+    "Category Report - "+category,
+    rows,
+    "EVR-Category-"+category.replace(/[^a-z0-9_-]+/gi,"-")+".pdf"
+  );
+}
+
+function upcomingReportData(){
+  const today=new Date().toISOString().slice(0,10);
+  return getExpenses()
+    .filter(e=>statusOf(e)==='Pending' && e.dueDate && e.dueDate>=today)
+    .sort((a,b)=>(a.dueDate||'').localeCompare(b.dueDate||''));
+}
+
+function renderUpcomingReport(){
+  const rows=upcomingReportData();
+  const total=rows.reduce((s,e)=>s+Number(e.amount||0),0);
+  document.getElementById('upcomingReport').innerHTML = rows.length ? `
+    <div class="report-stats">
+      <div class="report-stat">Upcoming Expenses<strong>${rows.length}</strong></div>
+      <div class="report-stat">Total Due<strong>${money(total)}</strong></div>
+      <div class="report-stat">Next Due<strong>${fmtDate(rows[0].dueDate)}</strong></div>
+    </div>
+    ${reportTable(rows)}
+  ` : '<div class="empty">No upcoming expenses.</div>';
+}
+
+function upcomingPDF(){
+  const rows=upcomingReportData();
+  if(!rows.length){alert('There are no upcoming expenses to save.');return;}
+  saveArrayPDF(
+    'Upcoming Expenses Report',
+    rows,
+    'EVR-Upcoming-Expenses.pdf'
+  );
+}
+
+function allExpensesPDF(){
+  saveArrayPDF("All EVR Expenses",getExpenses(),"EVR-All-Expenses.pdf");
+}
+
+
+function downloadBlobFile(blob,filename){
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url;
+  a.download=filename;
+  a.style.display="none";
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function(){
+    a.remove();
+    URL.revokeObjectURL(url);
+  },1500);
+}
+
+function exportJSON(){
+  try{
+    const backup={
+      app:"EVR Personal Expense Manager",
+      version:4,
+      exportedAt:new Date().toISOString(),
+      data:{
+        expenses:Array.isArray(db.expenses)?db.expenses:[],
+        people:Array.isArray(db.people)?db.people:[],
+        categories:Array.isArray(db.categories)?db.categories:[],
+        banks:Array.isArray(db.banks)?db.banks:[],
+        bankTransactions:Array.isArray(db.bankTransactions)?db.bankTransactions:[]
+      }
+    };
+
+    const blob=new Blob(
+      [JSON.stringify(backup,null,2)],
+      {type:"application/json;charset=utf-8"}
+    );
+
+    downloadBlobFile(
+      blob,
+      "EVR-Full-Backup-"+today()+".json"
+    );
+
+    toast("Full backup JSON downloaded.");
+    markBackupCompleted();
+  }catch(error){
+    console.error(error);
+    alert("Could not create the JSON backup.");
+  }
+}
+
+function importJSON(){const input=document.getElementById('importFile');if(!input?.files?.[0])return alert('Please choose a JSON backup file first.');const reader=new FileReader();reader.onload=function(){try{let raw=JSON.parse(String(reader.result).replace(/^\uFEFF/,''));let source=raw;for(const k of ['data','backup','database','db','payload','state'])if(source&&source[k]&&typeof source[k]==='object'&&(source[k].expenses||source[k].people||source[k].banks||source[k].accounts)){source=source[k];break}const expenses=Array.isArray(source.expenses)?source.expenses:(Array.isArray(source.items)?source.items:[]);if(!expenses.length&&!Array.isArray(source.banks)&&!Array.isArray(source.accounts))throw new Error('Invalid backup');db={expenses,people:Array.isArray(source.people)?source.people:['Me'],categories:Array.isArray(source.categories)?source.categories:[...DEFAULT_CATS],banks:Array.isArray(source.banks)?source.banks:(Array.isArray(source.accounts)?source.accounts:[{id:'cash',name:'Cash',balance:0,openingBalance:0}]),bankTransactions:Array.isArray(source.bankTransactions)?source.bankTransactions:(Array.isArray(source.transactions)?source.transactions:[]),version:4};ensureBanks();localStorage.setItem(KEY,JSON.stringify(db));renderAll();input.value='';alert('Full backup imported successfully.');}catch(e){console.error(e);alert('Invalid or unsupported EVR backup JSON file.');}};reader.readAsText(input.files[0])}
+function clearAll(){
+  if(!confirm(
+    "This will permanently delete all local expenses, people and categories. Continue?"
+  )){
+    return;
+  }
+
+  db={
+    expenses:[],
+    people:["Me"],
+    categories:[...DEFAULT_CATS],
+    version:3
+  };
+
+  localStorage.setItem(KEY,JSON.stringify(db));
+  renderAll();
+  toast("All data cleared.");
+}
+
+function downloadAllCSV(){
+  downloadCSV(
+    getExpenses(),
+    "EVR-All-Expenses.csv"
+  );
+}
+
+
+const BACKUP_REMINDER_KEY="evr_backup_reminder_v1";
+
+function getBackupReminderSettings(){
+  try{
+    return JSON.parse(localStorage.getItem(BACKUP_REMINDER_KEY)||"null") || {
+      frequencyDays:7,
+      lastBackup:null
+    };
+  }catch(e){
+    return {frequencyDays:7,lastBackup:null};
+  }
+}
+
+function saveBackupReminderSettings(){
+  const frequency=Number(document.getElementById("backupReminderFrequency")?.value||7);
+  const current=getBackupReminderSettings();
+  current.frequencyDays=frequency;
+  localStorage.setItem(BACKUP_REMINDER_KEY,JSON.stringify(current));
+  updateBackupReminderUI();
+  toast("Backup reminder saved.");
+}
+
+function markBackupCompleted(){
+  const s=getBackupReminderSettings();
+  s.lastBackup=new Date().toISOString();
+  localStorage.setItem(BACKUP_REMINDER_KEY,JSON.stringify(s));
+  updateBackupReminderUI();
+}
+
+function backupNow(){
+  exportJSON();
+}
+
+function clearBackupReminder(){
+  localStorage.removeItem(BACKUP_REMINDER_KEY);
+  updateBackupReminderUI();
+  toast("Backup reminder reset.");
+}
+
+function updateBackupReminderUI(){
+  const settings=getBackupReminderSettings();
+  const select=document.getElementById("backupReminderFrequency");
+  const status=document.getElementById("backupReminderStatus");
+
+  if(select){
+    select.value=String(settings.frequencyDays||7);
+  }
+
+  if(!status)return;
+
+  if(!settings.lastBackup){
+    status.textContent="No backup recorded yet. Please make your first backup now.";
+    status.style.color="#9b5c00";
+    return;
+  }
+
+  const last=new Date(settings.lastBackup);
+  const next=new Date(
+    last.getTime()+Number(settings.frequencyDays||7)*24*60*60*1000
+  );
+
+  const now=new Date();
+
+  if(now>=next){
+    status.textContent=
+      "Backup recommended now. Last backup: "+
+      last.toLocaleString();
+    status.style.color="#b00000";
+  }else{
+    status.textContent=
+      "Last backup: "+
+      last.toLocaleString()+
+      " · Next reminder: "+
+      next.toLocaleString();
+    status.style.color="#166534";
+  }
+}
+
+function checkBackupReminder(){
+  updateBackupReminderUI();
+
+  const settings=getBackupReminderSettings();
+  if(!settings.lastBackup)return;
+
+  const next=
+    new Date(settings.lastBackup).getTime()+
+    Number(settings.frequencyDays||7)*24*60*60*1000;
+
+  if(Date.now()>=next){
+    setTimeout(function(){
+      alert(
+        "EVR Expenses backup reminder: please download a new Full Backup JSON."
+      );
+    },800);
+  }
+}
+
+
+function updateDashboardPeriod(){
+  const month=Number(document.getElementById('dashboardMonth')?.value||new Date().getMonth()+1);
+  const year=Number(document.getElementById('dashboardYear')?.value||new Date().getFullYear());
+  renderDashboardForPeriod(month,year);
+}
+
+function renderDashboardForPeriod(month,year){
+  // Keep the existing dashboard renderer intact when possible.
+  // Update common dashboard summary elements by filtering the stored expenses.
+  const all=getExpenses();
+  const selected=all.filter(e=>{
+    const d=new Date(e.date);
+    return d.getMonth()+1===month && d.getFullYear()===year;
+  });
+
+  const total=selected.reduce((s,e)=>s+Number(e.amount||0),0);
+  const paid=selected.filter(e=>statusOf(e)==='Paid').reduce((s,e)=>s+Number(e.amount||0),0);
+  const pending=selected.filter(e=>statusOf(e)==='Pending').reduce((s,e)=>s+Number(e.amount||0),0);
+  const overdue=selected.filter(e=>statusOf(e)==='Overdue').reduce((s,e)=>s+Number(e.amount||0),0);
+
+  const upcoming=getExpenses().filter(e=>statusOf(e)==='Pending');
+  const upcomingTotal=upcoming.reduce((s,e)=>s+Number(e.amount||0),0);
+
+  const map={
+    dashboardTotal:money(total),
+    dashboardPaid:money(paid),
+    dashboardPending:money(pending),
+    dashboardOverdue:money(overdue),
+    dashboardUpcoming:money(upcomingTotal)
+  };
+  Object.keys(map).forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.textContent=map[id];
+  });
+}
+
+function initDashboardPeriod(){
+  const y=document.getElementById('dashboardYear');
+  const m=document.getElementById('dashboardMonth');
+  if(!y||!m)return;
+  const now=new Date();
+  const current=now.getFullYear();
+  y.innerHTML='';
+  for(let year=current-10;year<=current+10;year++){
+    y.innerHTML += '<option value="'+year+'">'+year+'</option>';
+  }
+  m.value=String(now.getMonth()+1);
+  y.value=String(current);
+  updateDashboardPeriod();
+}
+
+function pdfFromHTML(title, html, filename){
+  const tmp=document.createElement('div');tmp.innerHTML=html;
+  const rows=[...tmp.querySelectorAll('tbody tr')].map(tr=>{const c=[...tr.querySelectorAll('td')].map(x=>x.innerText);return {date:c[0]||'',name:c[1]||title,amount:parseFloat((c[2]||'').replace(/[^0-9.-]/g,''))||0,category:c[3]||'',person:c[4]||'',payment:c[5]||'',dueDate:c[6]||'',status:c[7]||''}});
+  saveArrayPDF(title,rows,filename);
+}
+
+function saveDashboardPDF(){
+  const month=document.getElementById('dashboardMonth')?.selectedOptions[0]?.text||'';
+  const year=document.getElementById('dashboardYear')?.value||'';
+  const html='<p><b>Period:</b> '+month+' '+year+'</p>'+
+    '<div class="summary">'+
+    '<div class="box"><b>Total</b><br>'+
+    (document.getElementById('dashboardTotal')?.textContent||money(0))+'</div>'+
+    '<div class="box"><b>Paid</b><br>'+
+    (document.getElementById('dashboardPaid')?.textContent||money(0))+'</div>'+
+    '<div class="box"><b>Pending</b><br>'+
+    (document.getElementById('dashboardPending')?.textContent||money(0))+'</div>'+
+    '<div class="box"><b>Overdue</b><br>'+
+    (document.getElementById('dashboardOverdue')?.textContent||money(0))+'</div>'+
+    '<div class="box"><b>Upcoming</b><br>'+
+    (document.getElementById('dashboardUpcoming')?.textContent||money(0))+'</div>'+
+    '</div>';
+  pdfFromHTML('EVR Dashboard - '+month+' '+year,html,'EVR-Dashboard.pdf');
+}
+
+function saveExpensesPDF(){
+  const rows=[...document.querySelectorAll('#expenseTable tr')].map(r=>'<tr>'+r.innerHTML+'</tr>').join('');
+  const html='<div class="summary"><div class="box"><b>Expenses</b><br>'+
+    (document.querySelector('#expensesSummary')?.innerText||'')+
+    '</div></div><table><thead><tr><th>Date</th><th>Expense</th><th>Amount</th><th>Category</th><th>Person</th><th>Payment</th><th>Due</th><th>Status</th></tr></thead><tbody>'+
+    rows+'</tbody></table>';
+  pdfFromHTML('EVR Expenses',html,'EVR-Expenses.pdf');
+}
+
+function saveUpcomingPDF(){
+  const up=document.getElementById('upcomingList')?.innerHTML||'';
+  const ov=document.getElementById('overdueList')?.innerHTML||'';
+  const html='<h2>Upcoming Expenses</h2><p>'+
+    (document.getElementById('upcomingTotal')?.textContent||'')+
+    '</p><div>'+up+'</div><h2>Overdue Expenses</h2><p>'+
+    (document.getElementById('overdueTotal')?.textContent||'')+
+    '</p><div>'+ov+'</div>';
+  pdfFromHTML('EVR Upcoming & Overdue Expenses',html,'EVR-Upcoming-Overdue.pdf');
+}
+
+
+function ensureBanks(){if(!Array.isArray(db.banks))db.banks=[{id:'cash',name:'Cash',balance:0,openingBalance:0}];if(!db.banks.some(x=>x.id==='cash'))db.banks.unshift({id:'cash',name:'Cash',balance:0,openingBalance:0});if(!Array.isArray(db.bankTransactions))db.bankTransactions=[]}
+function fillAccountSelect(id){ensureBanks();const s=document.getElementById(id);if(!s)return;const old=s.value;s.innerHTML='<option value="">No Bank / Cash</option>'+db.banks.map(b=>`<option value="${esc(b.id)}">${esc(b.name)}</option>`).join('');if([...s.options].some(o=>o.value===old))s.value=old}
+function toggleExpenseAccount(){const s=document.getElementById('eStatus'),a=document.getElementById('eAccount');if(!s||!a)return;a.disabled=s.value!=='Paid';if(s.value!=='Paid')a.value=''}
+function accountBalance(id){ensureBanks();const b=db.banks.find(x=>x.id===id);return b?Number(b.balance||0):0}
+function addBank(){ensureBanks();const n=document.getElementById('newBankName').value.trim(),bal=Number(document.getElementById('newBankBalance').value||0);if(!n)return alert('Enter bank name.');db.banks.push({id:'b_'+Date.now(),name:n,balance:bal,openingBalance:bal});saveDB();renderBanks();toast('Bank added')}
+function renderBanks(){ensureBanks();const list=document.getElementById('bankList'),bal=document.getElementById('bankBalances');if(list)list.innerHTML=db.banks.map(b=>`<div class="manage-row"><span><b>${esc(b.name)}</b><br><small>Available balance</small></span><b>${money(b.balance)}</b><button class="btn danger" onclick="deleteBank('${b.id}')">Delete</button></div>`).join('');if(bal)bal.innerHTML=db.banks.map(b=>`<div class="currency-card"><b>${esc(b.name)}</b><div class="currency-value">${money(b.balance)}</div></div>`).join('');fillAccountSelect('eAccount');fillAccountSelect('txFrom');fillAccountSelect('txTo');const tb=document.getElementById('bankTxTable');if(tb)tb.innerHTML=db.bankTransactions.slice().reverse().map(t=>`<tr><td>${fmtDate(t.date)}</td><td>${esc(t.type)}</td><td>${esc(t.fromName||'-')}</td><td>${esc(t.toName||'-')}</td><td>${money(t.amount)}</td><td>${esc(t.note||'')}</td></tr>`).join('')||'<tr><td colspan="6" class="empty">No bank transactions.</td></tr>'}
+function deleteBank(id){if(id==='cash')return alert('Cash cannot be deleted.');if(!confirm('Delete this bank?'))return;db.banks=db.banks.filter(b=>b.id!==id);saveDB();renderBanks()}
+function saveBankTransaction(){ensureBanks();const type=document.getElementById('txType').value,from=document.getElementById('txFrom').value,to=document.getElementById('txTo').value,amount=Number(document.getElementById('txAmount').value||0),note=document.getElementById('txNote').value.trim();if(amount<=0)return alert('Enter a valid amount.');if(type==='transfer'){if(!from||!to||from===to)return alert('Choose different From and To accounts.');if(accountBalance(from)<amount)return alert('Insufficient available balance.');db.banks.find(b=>b.id===from).balance-=amount;db.banks.find(b=>b.id===to).balance+=amount}else if(type==='deposit'){if(!to)return alert('Choose the bank receiving the cash deposit.');db.banks.find(b=>b.id===to).balance+=amount}else if(type==='atm'){if(!from)return alert('Choose the bank.');if(accountBalance(from)<amount)return alert('Insufficient available balance.');db.banks.find(b=>b.id===from).balance-=amount;/* ATM withdrawal intentionally does not add to Cash */}else if(type==='adjust'){if(!to)return alert('Choose an account.');db.banks.find(b=>b.id===to).balance+=amount}const f=db.banks.find(b=>b.id===from),t=db.banks.find(b=>b.id===to);db.bankTransactions.push({id:'tx_'+Date.now(),date:today(),type,from,to,fromName:f?.name||'',toName:t?.name||'',amount,note});saveDB();renderBanks();toast('Transaction saved')}
+function saveBankTransactionsPDF(){const rows=db.bankTransactions.slice().reverse().map(t=>({date:t.date,name:t.type+' '+(t.note||''),amount:t.amount,category:'Bank Transaction',person:'',payment:(t.fromName||'-')+' → '+(t.toName||'-'),status:'Completed',dueDate:''}));saveArrayPDF('EVR Bank Transactions',rows,'EVR-Bank-Transactions.pdf')}
+
+function renderAll(){ensureBanks();fillSelect('filterPerson',db.people,'All People');fillSelect('filterCategory',db.categories,'All Categories');renderDashboard();renderExpenses();renderUpcoming();renderPeople();renderCategories();renderReports();renderBanks();}
+
+
+document.addEventListener("DOMContentLoaded", function(){ renderAll(); syncBankSubSelects(); });
+
+document.addEventListener("DOMContentLoaded",function(){
+  updateBackupReminderUI();
+  checkBackupReminder();
+});
+
+document.addEventListener("DOMContentLoaded",function(){initDashboardPeriod();ensureBanks();var s=document.getElementById('eStatus');if(s)s.addEventListener('change',toggleExpenseAccount);});
+
+function toggleMenu(){const m=document.getElementById('menuPanel');if(m)m.classList.toggle('show')}
+function showBankSub(name,btn){document.querySelectorAll('.bank-sub').forEach(x=>x.classList.remove('active'));const el=document.getElementById('bankSub'+name.charAt(0).toUpperCase()+name.slice(1));if(el)el.classList.add('active');document.querySelectorAll('.bank-tabs button').forEach(x=>x.classList.remove('active'));if(btn)btn.classList.add('active');syncBankSubSelects();}
+function syncBankSubSelects(){ensureBanks();['subTransferFrom','subTransferTo','subDepositTo','subCashFrom','subCashTo','subAtmFrom'].forEach(id=>{const e=document.getElementById(id);if(e)e.innerHTML=db.banks.map(b=>`<option value="${esc(b.id)}">${esc(b.name)}</option>`).join('')});['subTransferDate','subDepositDate','subCashDate','subAtmDate'].forEach(id=>{const e=document.getElementById(id);if(e&&!e.value)e.value=today()});}
+function saveBankSubTransaction(kind){ensureBanks();let type=kind,from='',to='',amount=0,note='',date=today();if(kind==='transfer'){from=document.getElementById('subTransferFrom').value;to=document.getElementById('subTransferTo').value;amount=Number(document.getElementById('subTransferAmount').value||0);note=document.getElementById('subTransferNote').value;date=document.getElementById('subTransferDate').value||today()}if(kind==='deposit'){to=document.getElementById('subDepositTo').value;amount=Number(document.getElementById('subDepositAmount').value||0);note=document.getElementById('subDepositNote').value;date=document.getElementById('subDepositDate').value||today()}if(kind==='cashbank'){from=document.getElementById('subCashFrom').value;to=document.getElementById('subCashTo').value;amount=Number(document.getElementById('subCashAmount').value||0);note=document.getElementById('subCashNote').value;date=document.getElementById('subCashDate').value||today()}if(kind==='atm'){from=document.getElementById('subAtmFrom').value;amount=Number(document.getElementById('subAtmAmount').value||0);note=document.getElementById('subAtmNote').value;date=document.getElementById('subAtmDate').value||today()}if(amount<=0)return alert('Enter a valid amount.');if(kind==='transfer'||kind==='cashbank'){if(!from||!to||from===to)return alert('Choose different accounts.');if(accountBalance(from)<amount)return alert('Insufficient available balance.');db.banks.find(b=>b.id===from).balance-=amount;db.banks.find(b=>b.id===to).balance+=amount}else if(kind==='deposit'){if(!to)return alert('Choose the receiving bank.');db.banks.find(b=>b.id===to).balance+=amount}else if(kind==='atm'){if(!from)return alert('Choose the bank.');if(accountBalance(from)<amount)return alert('Insufficient available balance.');db.banks.find(b=>b.id===from).balance-=amount}const f=db.banks.find(b=>b.id===from),t=db.banks.find(b=>b.id===to);db.bankTransactions.push({id:'tx_'+Date.now(),date,type,from,to,fromName:f?.name||'',toName:t?.name||'',amount,note});saveDB();renderBanks();syncBankSubSelects();toast('Transaction saved')}
+
+// Keep dashboard balance visible and force current month as the default whenever opened.
+const _oldRenderDashboard=renderDashboard;
+renderDashboard=function(){_oldRenderDashboard();ensureBanks();const el=document.getElementById('dashboardBankBalance');if(el)el.textContent=money(db.banks.reduce((s,b)=>s+Number(b.balance||0),0));const m=document.getElementById('dashboardMonth'),y=document.getElementById('dashboardYear');if(m&&y){const now=new Date();if(!m.value)m.value=String(now.getMonth()+1);if(!y.value)y.value=String(now.getFullYear())}};
+const _oldPage=page;
+page=function(id,btn){_oldPage(id,btn);document.querySelectorAll('.bottom-nav button').forEach(b=>b.classList.remove('active'));const map={dashboard:0,expenses:1,upcoming:2,people:3,banks:4,reports:5};if(map[id]!=null){const b=document.querySelectorAll('.bottom-nav button')[map[id]];if(b)b.classList.add('active')}if(id==='banks')syncBankSubSelects();if(id==='dashboard')initDashboardPeriod();};
+window.addEventListener('load',function(){syncBankSubSelects();});
+
+// Final dashboard behavior: latest/current month by default; selecting Dashboard Period changes only the dashboard month.
+function updateDashboardPeriod(){
+  const m=Number(document.getElementById('dashboardMonth')?.value||new Date().getMonth()+1);
+  const y=Number(document.getElementById('dashboardYear')?.value||new Date().getFullYear());
+  const ym=String(y)+'-'+String(m).padStart(2,'0');
+  const rows=getExpenses().filter(e=>(e.date||'').startsWith(ym)).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  const total=rows.reduce((s,e)=>s+Number(e.amount||0),0);
+  const paid=rows.filter(e=>statusOf(e)==='Paid').reduce((s,e)=>s+Number(e.amount||0),0);
+  const pending=rows.filter(e=>statusOf(e)==='Pending').reduce((s,e)=>s+Number(e.amount||0),0);
+  const overdue=rows.filter(e=>statusOf(e)==='Overdue').reduce((s,e)=>s+Number(e.amount||0),0);
+  const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v};
+  set('totalAmount',money(total));set('paidAmount',money(paid));set('pendingAmount',money(pending));set('overdueAmount',money(overdue));set('peopleCount',db.people.length);
+  const recent=document.getElementById('recent');
+  if(recent)recent.innerHTML=rows.slice(0,8).map(e=>`<div class="manage-row"><span><b>${esc(e.name)}</b><br><small>${fmtDate(e.date)} · ${esc(e.person)}</small></span><b>${money(e.amount)}</b></div>`).join('')||'<div class="empty">No transactions for this month.</div>';
+  ensureBanks();set('dashboardBankBalance',money(db.banks.reduce((s,b)=>s+Number(b.balance||0),0)));
+  const d=new Date();d.setHours(0,0,0,0);const end=new Date(d);end.setDate(end.getDate()+7);const endS=end.toISOString().slice(0,10);
+  const up=getExpenses().filter(e=>statusOf(e)==='Pending'&&e.dueDate&&e.dueDate>=today()&&e.dueDate<endS).sort((a,b)=>(a.dueDate||'').localeCompare(b.dueDate||''));
+  const dashUp=document.getElementById('dashboardUpcoming');if(dashUp)dashUp.innerHTML=up.map(e=>`<div class="manage-row"><span><b>${esc(e.name)}</b><br><small>Due ${fmtDate(e.dueDate)}</small></span><b>${money(e.amount)}</b></div>`).join('')||'<div class="empty">No expenses due in the next 7 days.</div>';
+  const ut=document.getElementById('upcomingTotal');if(ut)ut.textContent=up.length+' expenses · '+money(up.reduce((s,e)=>s+Number(e.amount||0),0));
+}
+function initDashboardPeriod(){
+  const y=document.getElementById('dashboardYear'),m=document.getElementById('dashboardMonth');if(!y||!m)return;
+  const now=new Date(),current=now.getFullYear();y.innerHTML='';for(let year=current-10;year<=current+10;year++)y.innerHTML+='<option value="'+year+'">'+year+'</option>';
+  m.value=String(now.getMonth()+1);y.value=String(current);updateDashboardPeriod();
+}
+// Paid button opens the edit screen so the user can choose a bank, Cash, or leave the account blank.
+function markExpensePaid(id){
+  const e=db.expenses.find(x=>x.id===id);if(!e)return;
+  openExpense(id);
+  const st=document.getElementById('eStatus');if(st){st.value='Paid';toggleExpenseAccount();}
+}
 </script>
 </body>
 </html>
