@@ -44,12 +44,6 @@
 <div class="stat red"><i aria-hidden="true" class="stat-icon">⚠</i><small>Overdue</small><strong id="overdueAmount">₹0.00</strong><span class="subtle">Total Overdue</span></div>
 <div class="stat purple"><small>People</small><strong id="peopleCount">0</strong><span class="subtle">Members</span></div>
 <div class="stat"><small>Total Bank Balance</small><strong id="dashboardBankBalance">₹0.00</strong><span class="subtle">All Accounts</span></div>
-<div class="stat green" style="cursor:pointer" onclick="page('banks',document.querySelector('.nav button[onclick*="banks"]'))">
-<i aria-hidden="true" class="stat-icon">▣</i>
-<small>Cash Available</small>
-<strong id="dashboardCashBalance">₹0.00</strong>
-<span class="subtle">Available Cash</span>
-</div>
 </div>
 <div class="grid2">
 <div class="card"><div style="display:flex;justify-content:space-between;align-items:center"><h2><i aria-hidden="true" class="section-icon">↔</i>Latest Transactions <span class="subtle">(Current Month)</span></h2><button class="btn primary" onclick="openExpense()">+ Add Expense</button></div><div id="recent"></div></div>
@@ -1125,11 +1119,7 @@ function saveBankSubTransaction(kind){ensureBanks();let type=kind,from='',to='',
 
 // Keep dashboard balance visible and force current month as the default whenever opened.
 const _oldRenderDashboard=renderDashboard;
-renderDashboard=function(){_oldRenderDashboard();ensureBanks();const bankTotal=db.banks.filter(b=>b.id!=='cash').reduce((s,b)=>s+Number(b.balance||0),0);
-const cash=db.banks.find(b=>b.id==='cash');
-const cashTotal=cash?Number(cash.balance||0):0;
-const el=document.getElementById('dashboardBankBalance');if(el)el.textContent=money(bankTotal);
-const cel=document.getElementById('dashboardCashBalance');if(cel)cel.textContent=money(cashTotal);const m=document.getElementById('dashboardMonth'),y=document.getElementById('dashboardYear');if(m&&y){const now=new Date();if(!m.value)m.value=String(now.getMonth()+1);if(!y.value)y.value=String(now.getFullYear())}};
+renderDashboard=function(){_oldRenderDashboard();ensureBanks();const el=document.getElementById('dashboardBankBalance');if(el)el.textContent=money(db.banks.reduce((s,b)=>s+Number(b.balance||0),0));const m=document.getElementById('dashboardMonth'),y=document.getElementById('dashboardYear');if(m&&y){const now=new Date();if(!m.value)m.value=String(now.getMonth()+1);if(!y.value)y.value=String(now.getFullYear())}};
 const _oldPage=page;
 page=function(id,btn){_oldPage(id,btn);document.querySelectorAll('.bottom-nav button').forEach(b=>b.classList.remove('active'));const map={dashboard:0,expenses:1,upcoming:2,people:3,banks:4,reports:5};if(map[id]!=null){const b=document.querySelectorAll('.bottom-nav button')[map[id]];if(b)b.classList.add('active')}if(id==='banks')syncBankSubSelects();if(id==='dashboard')initDashboardPeriod();};
 window.addEventListener('load',function(){syncBankSubSelects();});
@@ -1148,10 +1138,7 @@ function updateDashboardPeriod(){
   set('totalAmount',money(total));set('paidAmount',money(paid));set('pendingAmount',money(pending));set('overdueAmount',money(overdue));set('peopleCount',db.people.length);
   const recent=document.getElementById('recent');
   if(recent)recent.innerHTML=rows.slice(0,8).map(e=>`<div class="manage-row"><span><b>${esc(e.name)}</b><br><small>${fmtDate(e.date)} · ${esc(e.person)}</small></span><b>${money(e.amount)}</b></div>`).join('')||'<div class="empty">No transactions for this month.</div>';
-  ensureBanks();
-set('dashboardBankBalance',money(db.banks.filter(b=>b.id!=='cash').reduce((s,b)=>s+Number(b.balance||0),0)));
-const cashAcc=db.banks.find(b=>b.id==='cash');
-set('dashboardCashBalance',money(cashAcc?Number(cashAcc.balance||0):0));
+  ensureBanks();set('dashboardBankBalance',money(db.banks.reduce((s,b)=>s+Number(b.balance||0),0)));
   const d=new Date();d.setHours(0,0,0,0);const end=new Date(d);end.setDate(end.getDate()+7);const endS=end.toISOString().slice(0,10);
   const up=getExpenses().filter(e=>statusOf(e)==='Pending'&&e.dueDate&&e.dueDate>=today()&&e.dueDate<endS).sort((a,b)=>(a.dueDate||'').localeCompare(b.dueDate||''));
   const dashUp=document.getElementById('dashboardUpcoming');if(dashUp)dashUp.innerHTML=up.map(e=>`<div class="manage-row"><span><b>${esc(e.name)}</b><br><small>Due ${fmtDate(e.dueDate)}</small></span><b>${money(e.amount)}</b></div>`).join('')||'<div class="empty">No expenses due in the next 7 days.</div>';
@@ -1251,7 +1238,7 @@ function markExpensePaid(id){
   };
 
   function bindDashboardCards(){
-    const ids={totalAmount:'expenses',paidAmount:'expenses',pendingAmount:'upcoming',overdueAmount:'overdue',peopleCount:'people',dashboardBankBalance:'banks',dashboardCashBalance:'banks'};
+    const ids={totalAmount:'expenses',paidAmount:'expenses',pendingAmount:'upcoming',overdueAmount:'overdue',peopleCount:'people',dashboardBankBalance:'banks'};
     Object.keys(ids).forEach(id=>{
       const el=document.getElementById(id); if(!el) return;
       const box=el.closest('.stat'); if(!box || box.dataset.evrBound==='1') return;
@@ -1275,27 +1262,104 @@ function markExpensePaid(id){
   window.saveArrayPDF=function(title,rows,filename){
     try{
       rows=Array.isArray(rows)?rows:[];
-      const pageW=595,pageH=842,margin=36,lineH=13,maxChars=92;
-      const lines=[title,'EVR Personal Expense Manager','Generated: '+new Date().toLocaleString(),'','Total: INR '+rows.reduce((s,e)=>s+Number(e.amount||0),0).toFixed(2)+'    Expenses: '+rows.length,''];
-      function wrap(v){
-        const words=String(v??'').replace(/\s+/g,' ').trim().split(' '),out=[];let cur='';
-        if(!String(v??'').trim()) return [''];
-        for(const w of words){const test=cur?cur+' '+w:w;if(test.length>maxChars&&cur){out.push(cur);cur=w}else cur=test;}if(cur)out.push(cur);return out;
-      }
-      if(rows.length){
-        lines.push('Date | Expense | Amount | Category | Person | Payment | Status');
-        lines.push('--------------------------------------------------------------------------------');
-        rows.forEach(e=>{lines.push((e.date||'')+' | '+(e.name||'')+' | INR '+Number(e.amount||0).toFixed(2)+' | '+(e.category||'')+' | '+(e.person||'')+' | '+(e.payment||'')+' | '+(e.status||statusOf(e)));if(e.dueDate)lines.push('Due Date: '+e.dueDate);if(e.notes)lines.push('Notes: '+e.notes);lines.push('');});
-      }else lines.push('No expenses found.');
-      const all=[];lines.forEach(x=>wrap(x).forEach(y=>all.push(y)));
-      const perPage=57,pages=[];for(let i=0;i<all.length;i+=perPage)pages.push(all.slice(i,i+perPage));
-      const objs=[];const catalog=1,pagesObj=2,font=3;objs[font-1]='<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>';const kids=[];
-      const escPdf=x=>String(x).replace(/\\/g,'\\\\').replace(/\(/g,'\\(').replace(/\)/g,'\\)').replace(/[\r\n]/g,' ');
-      function add(o){objs.push(o);return objs.length;}
-      pages.forEach(pg=>{let stream='BT\n',y=pageH-margin;pg.forEach((line,i)=>{stream+='/F1 '+(i===0?16:9)+' Tf\n1 0 0 1 '+margin+' '+y+' Tm ('+escPdf(line)+') Tj\n';y-=lineH;});stream+='ET';const content=add('<< /Length '+stream.length+' >>\nstream\n'+stream+'\nendstream');const pid=add('<< /Type /Page /Parent '+pagesObj+' 0 R /MediaBox [0 0 '+pageW+' '+pageH+'] /Resources << /Font << /F1 '+font+' 0 R >> >> /Contents '+content+' 0 R >>');kids.push(pid);});
-      objs[catalog-1]='<< /Type /Catalog /Pages '+pagesObj+' 0 R >>';objs[pagesObj-1]='<< /Type /Pages /Kids ['+kids.map(x=>x+' 0 R').join(' ')+'] /Count '+kids.length+' >>';
-      let pdf='%PDF-1.4\n',offs=[0];objs.forEach((o,i)=>{offs[i+1]=pdf.length;pdf+=(i+1)+' 0 obj\n'+o+'\nendobj\n';});const xref=pdf.length;pdf+='xref\n0 '+(objs.length+1)+'\n0000000000 65535 f \n';for(let i=1;i<=objs.length;i++)pdf+=String(offs[i]).padStart(10,'0')+' 00000 n \n';pdf+='trailer\n<< /Size '+(objs.length+1)+' /Root '+catalog+' 0 R >>\nstartxref\n'+xref+'\n%%EOF';
-      const blob=new Blob([pdf],{type:'application/pdf'});const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=filename||'EVR-Report.pdf';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);toast('PDF saved successfully');
+      const pageW=842,pageH=595,margin=32,headerH=58,tableTop=pageH-118,rowH=24;
+      const cols=[
+        {name:'Date',x:margin,w:64},
+        {name:'Expense',x:margin+64,w:170},
+        {name:'Amount (INR)',x:margin+234,w:88},
+        {name:'Category',x:margin+322,w:100},
+        {name:'Person',x:margin+422,w:92},
+        {name:'Payment',x:margin+514,w:112},
+        {name:'Status',x:margin+626,w:92}
+      ];
+      const tableW=cols.reduce((s,c)=>s+c.w,0);
+      const esc=x=>String(x??'').replace(/\\/g,'\\\\').replace(/\(/g,'\\(').replace(/\)/g,'\\)').replace(/[\r\n]/g,' ');
+      const text=x=>String(x??'').replace(/\s+/g,' ').trim();
+      const clip=(x,n)=>{x=text(x);return x.length>n?x.slice(0,n-1)+'…':x};
+      const moneyPdf=v=>'₹ '+Number(v||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
+      const total=rows.reduce((s,e)=>s+Number(e.amount||0),0);
+      const pages=[];
+      const perPage=Math.max(1,Math.floor((tableTop-58)/rowH));
+      for(let i=0;i<Math.max(1,rows.length);i+=perPage)pages.push(rows.slice(i,i+perPage));
+      if(!rows.length)pages.push([]);
+
+      const objects=[];
+      const catalog=1,pagesObj=2,font=3;
+      objects[font-1]='<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>';
+      const pageIds=[];
+      const add=o=>{objects.push(o);return objects.length;};
+      const rgb=(r,g,b)=>`${r} ${g} ${b}`;
+      const line=(x1,y1,x2,y2)=>`${x1} ${y1} m ${x2} ${y2} l S\n`;
+      const rect=(x,y,w,h,fill,stroke=null)=>{
+        let z='';
+        if(fill)z+=`${rgb(...fill)} rg\n${x} ${y} ${w} ${h} re f\n`;
+        if(stroke)z+=`${rgb(...stroke)} RG\n${x} ${y} ${w} ${h} re S\n`;
+        return z;
+      };
+      const drawText=(x,y,size,value,bold=false)=>`BT\n/F1 ${size} Tf\n${x} ${y} Td (${esc(value)}) Tj\nET\n`;
+
+      pages.forEach((page,pi)=>{
+        let stream='';
+        // Header
+        stream+=rect(0,pageH-headerH,pageW,headerH,[7,27,61]);
+        stream+=drawText(margin,pageH-25,18,'EVR MONEY MANAGER');
+        stream+=drawText(margin,pageH-45,9,'Professional Money Management Report');
+        stream+=drawText(pageW-250,pageH-25,9,'Generated: '+new Date().toLocaleString());
+        stream+=drawText(pageW-250,pageH-45,9,'Page '+(pi+1)+' of '+pages.length);
+
+        // Report title and summary
+        stream+=drawText(margin,pageH-82,15,title);
+        stream+=drawText(margin,pageH-100,9,'Total: '+moneyPdf(total)+'    Records: '+rows.length);
+
+        // Table outer border + header
+        const headerY=tableTop;
+        stream+=rect(margin,headerY-rowH,tableW,rowH,[225,233,245],[180,190,205]);
+        cols.forEach((c)=>{
+          stream+=drawText(c.x+6,headerY-16,8,c.name);
+          stream+=line(c.x,headerY,c.x,headerY-rowH);
+        });
+        stream+=line(margin+tableW,headerY,margin+tableW,headerY-rowH);
+
+        let y=headerY-rowH;
+        page.forEach((e,ri)=>{
+          const alt=ri%2===0?[255,255,255]:[247,249,252];
+          stream+=rect(margin,y-rowH,tableW,rowH,alt);
+          const vals=[
+            clip(e.date,12),clip(e.name,26),moneyPdf(e.amount),clip(e.category,15),clip(e.person,14),clip(e.payment,17),clip(statusOf(e),12)
+          ];
+          vals.forEach((v,i)=>stream+=drawText(cols[i].x+6,y-16,8,v));
+          stream+=line(margin,y-rowH,margin+tableW,y-rowH);
+          cols.forEach(c=>stream+=line(c.x,y,c.x,y-rowH));
+          stream+=line(margin+tableW,y,margin+tableW,y-rowH);
+          y-=rowH;
+        });
+        if(!page.length){
+          stream+=drawText(margin+10,y-16,9,'No records found.');
+          stream+=line(margin,y-rowH,margin+tableW,y-rowH);
+        }
+        // Footer
+        stream+=drawText(margin,25,8,'EVR Money Manager • All amounts in Indian Rupees (INR)');
+        stream+=drawText(pageW-235,25,8,'Confidential personal finance report');
+
+        const contentId=add(`<< /Length ${stream.length} >>\nstream\n${stream}endstream`);
+        const pageId=add(`<< /Type /Page /Parent ${pagesObj} 0 R /MediaBox [0 0 ${pageW} ${pageH}] /Resources << /Font << /F1 ${font} 0 R >> >> /Contents ${contentId} 0 R >>`);
+        pageIds.push(pageId);
+      });
+      objects[catalog-1]=`<< /Type /Catalog /Pages ${pagesObj} 0 R >>`;
+      objects[pagesObj-1]=`<< /Type /Pages /Kids [${pageIds.map(x=>x+' 0 R').join(' ')}] /Count ${pageIds.length} >>`;
+
+      let pdf='%PDF-1.4\n',offsets=[0];
+      objects.forEach((o,i)=>{offsets[i+1]=pdf.length;pdf+=(i+1)+' 0 obj\n'+o+'\nendobj\n';});
+      const xref=pdf.length;
+      pdf+='xref\n0 '+(objects.length+1)+'\n0000000000 65535 f \n';
+      for(let i=1;i<=objects.length;i++)pdf+=String(offsets[i]).padStart(10,'0')+' 00000 n \n';
+      pdf+='trailer\n<< /Size '+(objects.length+1)+' /Root '+catalog+' 0 R >>\nstartxref\n'+xref+'\n%%EOF';
+
+      const blob=new Blob([pdf],{type:'application/pdf'});
+      const url=URL.createObjectURL(blob),a=document.createElement('a');
+      a.href=url;a.download=filename||'EVR-Report.pdf';document.body.appendChild(a);a.click();a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),2000);
+      toast('PDF saved successfully');
     }catch(e){console.error(e);alert('PDF could not be created. Please try again.');}
   };
 
