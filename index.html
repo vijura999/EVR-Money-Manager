@@ -323,32 +323,77 @@ render();
     }
   };
 
+  
   window.evrRestoreData = function (file) {
-    if (!file) return;
+    if (!(file instanceof File)) {
+      alert('Please select a valid EVR JSON backup file.');
+      return false;
+    }
+
+    if (!/\.json$/i.test(file.name) && file.type && file.type !== 'application/json') {
+      alert('Please select an EVR JSON backup file.');
+      return false;
+    }
+
     var reader = new FileReader();
-    reader.onload = function () {
+
+    reader.onload = function (event) {
       try {
-        var payload = JSON.parse(reader.result);
-        if (!payload || typeof payload !== 'object' || !payload.data) {
-          throw new Error('This is not a valid EVR backup file.');
+        var text = event.target.result;
+        if (typeof text !== 'string' || !text.trim()) {
+          throw new Error('The selected file is empty.');
         }
 
-        Object.keys(payload.data).forEach(function (key) {
-          var value = payload.data[key];
-          localStorage.setItem(key, typeof value === 'string' ? value : JSON.stringify(value));
+        var payload = JSON.parse(text);
+
+        // Accept both EVR backup formats:
+        // { app, version, data: {...} }
+        // and a raw object containing the saved data.
+        var source = payload && payload.data && typeof payload.data === 'object'
+          ? payload.data
+          : payload;
+
+        if (!source || typeof source !== 'object' || Array.isArray(source)) {
+          throw new Error('Invalid EVR backup structure.');
+        }
+
+        var restored = 0;
+
+        Object.keys(source).forEach(function (key) {
+          var value = source[key];
+
+          // Never write browser-internal-looking keys accidentally.
+          if (key === null || key === undefined) return;
+
+          try {
+            localStorage.setItem(
+              String(key),
+              typeof value === 'string' ? value : JSON.stringify(value)
+            );
+            restored++;
+          } catch (e) {
+            console.warn('Could not restore key:', key, e);
+          }
         });
 
-        alert('Restore completed. The app will reload.');
-        location.reload();
+        if (!restored) {
+          throw new Error('No restorable EVR data was found in this file.');
+        }
+
+        alert('Restore successful. The app will reload now.');
+        window.location.reload();
       } catch (err) {
         console.error('EVR restore failed:', err);
-        alert('Restore failed: ' + (err && err.message ? err.message : err));
+        alert('Restore failed: ' + (err && err.message ? err.message : 'Invalid JSON backup file.'));
       }
     };
+
     reader.onerror = function () {
-      alert('Unable to read the backup file.');
+      alert('Could not read the selected file.');
     };
+
     reader.readAsText(file);
+    return true;
   };
 
   // Make the functions available under common names too, without overriding
@@ -378,14 +423,27 @@ render();
           e.stopPropagation();
           var input = document.createElement('input');
           input.type = 'file';
-          input.accept = '.json,application/json';
-          input.style.display = 'none';
+          input.setAttribute('accept', 'application/json,.json');
+          input.multiple = false;
+          input.style.position = 'fixed';
+          input.style.left = '-9999px';
+          input.style.width = '1px';
+          input.style.height = '1px';
+          input.style.opacity = '0';
+
           input.addEventListener('change', function() {
-            if (this.files && this.files[0]) window.evrRestoreData(this.files[0]);
+            var selected = input.files && input.files.length ? input.files[0] : null;
+            if (selected) {
+              window.evrRestoreData(selected);
+            }
+            if (input.parentNode) input.parentNode.removeChild(input);
           });
+
           document.body.appendChild(input);
+
+          // Show the native file picker. Keeping the input in the DOM until
+          // the change event fires is important on Chrome/iPhone browsers.
           input.click();
-          setTimeout(function(){ input.remove(); }, 1000);
         });
       }
     });
