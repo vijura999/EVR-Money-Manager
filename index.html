@@ -236,34 +236,10 @@ function reports(){
 }
 
 /* BACKUP: downloads all current app data as JSON. */
-function backup(){
- save();
- let data={app:"EVR Money Manager",backupVersion:2,createdAt:new Date().toISOString(),...db};
- let blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"}),url=URL.createObjectURL(blob),a=document.createElement("a");
- a.href=url;a.download="EVR_Money_Manager_Backup.json";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);toast("Backup downloaded.");
-}
+
 
 /* RESTORE: accepts this app and older EVR JSON formats. */
-function restore(ev){
- let file=ev.target.files&&ev.target.files[0];if(!file)return;
- let reader=new FileReader();
- reader.onload=function(){
-  try{
-   let x=JSON.parse(reader.result);if(Array.isArray(x))x={expenses:x};
-   let expenses=Array.isArray(x.expenses)?x.expenses:(Array.isArray(x.expenseList)?x.expenseList:(Array.isArray(x.items)?x.items:[]));
-   let accounts=Array.isArray(x.accounts)?x.accounts:(Array.isArray(x.banks)?x.banks:(Array.isArray(x.bankAccounts)?x.bankAccounts:[]));
-   if(!expenses.length&&!accounts.length&&!Array.isArray(x.people)&&!Array.isArray(x.categories))throw new Error("No EVR data");
-   if(!accounts.length)accounts=defaultDB().accounts;
-   let clean=normalizeDB({expenses:expenses,accounts:accounts,
-     people:Array.isArray(x.people)?x.people:(Array.isArray(x.persons)?x.persons:["Viju"]),
-     categories:Array.isArray(x.categories)?x.categories:(Array.isArray(x.cats)?x.cats:DEFAULT_CATS)});
-   if(!confirm("Restore this backup? Current data in this app will be replaced.")){ev.target.value="";return}
-   db=clean;save();render();toast("Backup restored successfully.");
-  }catch(err){console.error(err);alert("This backup could not be read. Please select an EVR JSON backup file.")}
-  finally{ev.target.value=""}
- };
- reader.readAsText(file);
-}
+
 
 /* PDF: opens a clean print page. In the browser print dialog choose "Save as PDF". */
 function pdfExpenseList(list,title){
@@ -294,5 +270,140 @@ addEventListener("hashchange",render);
 addEventListener("storage",()=>{db=loadDB();render()});
 render();
 </script>
+
+<script id="evr-backup-fix">
+(function () {
+  'use strict';
+
+  function evrCollectBackup() {
+    var data = {};
+    for (var i = 0; i < localStorage.length; i++) {
+      var key = localStorage.key(i);
+      try {
+        var raw = localStorage.getItem(key);
+        try { data[key] = JSON.parse(raw); }
+        catch (e) { data[key] = raw; }
+      } catch (e) {}
+    }
+
+    // Also capture common in-memory application state if available.
+    var names = ['expenses','people','categories','accounts','transactions','settings'];
+    names.forEach(function (name) {
+      try {
+        if (typeof window[name] !== 'undefined') data[name] = window[name];
+      } catch (e) {}
+    });
+
+    return {
+      app: 'EVR Personal Expense Manager',
+      version: 3,
+      exportedAt: new Date().toISOString(),
+      data: data
+    };
+  }
+
+  window.evrBackupData = function () {
+    try {
+      var payload = evrCollectBackup();
+      var blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'EVR_Backup_' + new Date().toISOString().slice(0,10) + '.json';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+      alert('Backup saved successfully.');
+      return true;
+    } catch (err) {
+      console.error('EVR backup failed:', err);
+      alert('Backup failed: ' + (err && err.message ? err.message : err));
+      return false;
+    }
+  };
+
+  window.evrRestoreData = function (file) {
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function () {
+      try {
+        var payload = JSON.parse(reader.result);
+        if (!payload || typeof payload !== 'object' || !payload.data) {
+          throw new Error('This is not a valid EVR backup file.');
+        }
+
+        Object.keys(payload.data).forEach(function (key) {
+          var value = payload.data[key];
+          localStorage.setItem(key, typeof value === 'string' ? value : JSON.stringify(value));
+        });
+
+        alert('Restore completed. The app will reload.');
+        location.reload();
+      } catch (err) {
+        console.error('EVR restore failed:', err);
+        alert('Restore failed: ' + (err && err.message ? err.message : err));
+      }
+    };
+    reader.onerror = function () {
+      alert('Unable to read the backup file.');
+    };
+    reader.readAsText(file);
+  };
+
+  // Make the functions available under common names too, without overriding
+  // existing app functions unless they are missing.
+  if (typeof window.backupData !== 'function') window.backupData = window.evrBackupData;
+  if (typeof window.restoreData !== 'function') window.restoreData = window.evrRestoreData;
+
+  // Wire menu buttons by text/id, including buttons dynamically rendered later.
+  function wireBackupButtons(root) {
+    root = root || document;
+    var els = root.querySelectorAll('button, a, [role="button"]');
+    els.forEach(function(el) {
+      var txt = (el.textContent || '').trim().toLowerCase();
+      var id = (el.id || '').toLowerCase();
+      if ((txt.includes('backup') || id.includes('backup')) && !el.dataset.evrBackupBound) {
+        el.dataset.evrBackupBound = '1';
+        el.addEventListener('click', function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          window.evrBackupData();
+        });
+      }
+      if ((txt.includes('restore') || id.includes('restore')) && !el.dataset.evrRestoreBound) {
+        el.dataset.evrRestoreBound = '1';
+        el.addEventListener('click', function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          var input = document.createElement('input');
+          input.type = 'file';
+          input.accept = '.json,application/json';
+          input.style.display = 'none';
+          input.addEventListener('change', function() {
+            if (this.files && this.files[0]) window.evrRestoreData(this.files[0]);
+          });
+          document.body.appendChild(input);
+          input.click();
+          setTimeout(function(){ input.remove(); }, 1000);
+        });
+      }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    wireBackupButtons();
+    var observer = new MutationObserver(function(mutations) {
+      mutations.forEach(function(m) {
+        m.addedNodes.forEach(function(n) {
+          if (n.nodeType === 1) wireBackupButtons(n);
+        });
+      });
+    });
+    observer.observe(document.body, {childList:true, subtree:true});
+  });
+})();
+</script>
+
 </body>
 </html>
