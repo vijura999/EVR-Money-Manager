@@ -673,7 +673,40 @@ function personCSV(){let p=document.getElementById('personReportPerson').value;d
 
 
 function pdfEscapeText(text){
-  return String(text??"").replace(/\\/g,"\\\\").replace(/\(/g,"\\(").replace(/\)/g,"\\)").replace(/\r/g," ").replace(/\n/g," ");
+  // Keep generated PDFs compatible with the built-in PDF viewer.
+  // The simple Helvetica PDF font is ASCII-only, so convert symbols/accents safely.
+  const ascii=String(text??"")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g,"")
+    .replace(/₹/g,"INR ")
+    .replace(/[→➜➡]/g,"->")
+    .replace(/[—–]/g,"-")
+    .replace(/[•·]/g,"-")
+    .replace(/[^\x20-\x7E]/g,"?");
+  return ascii.replace(/\\/g,"\\\\").replace(/\(/g,"\\(").replace(/\)/g,"\\)").replace(/\r/g," ").replace(/\n/g," ");
+}
+
+function buildPdf(objects,catalog=1){
+  // PDF xref offsets are BYTE offsets, not JavaScript character offsets.
+  // Using TextEncoder prevents corrupted/blank PDFs when any non-ASCII text occurs.
+  const chunks=[];
+  let byteLength=0;
+  const offsets=[0];
+  const enc=new TextEncoder();
+  const push=(str)=>{const bytes=enc.encode(str);chunks.push(bytes);byteLength+=bytes.length;};
+  objects.forEach((obj,i)=>{
+    offsets[i+1]=byteLength;
+    push((i+1)+" 0 obj\n"+obj+"\nendobj\n");
+  });
+  const xref=byteLength;
+  let tail=`xref\n0 ${objects.length+1}\n0000000000 65535 f \n`;
+  for(let i=1;i<=objects.length;i++)tail+=String(offsets[i]).padStart(10,"0")+" 00000 n \n";
+  tail+=`trailer\n<< /Size ${objects.length+1} /Root ${catalog} 0 R >>\nstartxref\n${xref}\n%%EOF`;
+  push(tail);
+  const out=new Uint8Array(byteLength);
+  let pos=0;
+  for(const b of chunks){out.set(b,pos);pos+=b.length;}
+  return out;
 }
 
 function wrapPdfText(text,maxChars){
@@ -731,13 +764,7 @@ function createPdf(title,rows){
   objects[catalog-1]=`<< /Type /Catalog /Pages ${pagesObj} 0 R >>`;
   objects[pagesObj-1]=`<< /Type /Pages /Kids [${pageIds.map(x=>x+" 0 R").join(" ")}] /Count ${pageIds.length} >>`;
 
-  let pdf="%PDF-1.4\n",offsets=[0];
-  objects.forEach((obj,i)=>{offsets[i+1]=pdf.length;pdf+=(i+1)+" 0 obj\n"+obj+"\nendobj\n";});
-  const xref=pdf.length;
-  pdf+=`xref\n0 ${objects.length+1}\n0000000000 65535 f \n`;
-  for(let i=1;i<=objects.length;i++)pdf+=String(offsets[i]).padStart(10,"0")+" 00000 n \n";
-  pdf+=`trailer\n<< /Size ${objects.length+1} /Root ${catalog} 0 R >>\nstartxref\n${xref}\n%%EOF`;
-  return pdf;
+  return buildPdf(objects,catalog);
 }
 
 function saveArrayPDF(title,rows,filename){
@@ -1214,8 +1241,7 @@ function saveUpcomingPDF(){
   });
   objects[catalog-1]=`<< /Type /Catalog /Pages ${pagesObj} 0 R >>`;
   objects[pagesObj-1]=`<< /Type /Pages /Kids [${pageIds.map(x=>x+' 0 R').join(' ')}] /Count ${pageIds.length} >>`;
-  let pdf='%PDF-1.4\n',offsets=[0];objects.forEach((obj,i)=>{offsets[i+1]=pdf.length;pdf+=(i+1)+' 0 obj\n'+obj+'\nendobj\n'});
-  const xref=pdf.length;pdf+=`xref\n0 ${objects.length+1}\n0000000000 65535 f \n`;for(let i=1;i<=objects.length;i++)pdf+=String(offsets[i]).padStart(10,'0')+' 00000 n \n';pdf+=`trailer\n<< /Size ${objects.length+1} /Root ${catalog} 0 R >>\nstartxref\n${xref}\n%%EOF`;
+  const pdf=buildPdf(objects,catalog);
   const blob=new Blob([pdf],{type:'application/pdf'});const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='VIJU-MONEY-MANAGER-Upcoming-Overdue.pdf';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);
 }
 
@@ -1407,16 +1433,7 @@ function saveBankTransactionsPDF(){
   objects[catalog-1]=`<< /Type /Catalog /Pages ${pagesObj} 0 R >>`;
   objects[pagesObj-1]=`<< /Type /Pages /Kids [${pageIds.map(x=>x+' 0 R').join(' ')}] /Count ${pageIds.length} >>`;
 
-  let pdf='%PDF-1.4\n',offsets=[0];
-  objects.forEach((obj,i)=>{
-    offsets[i+1]=pdf.length;
-    pdf+=(i+1)+' 0 obj\n'+obj+'\nendobj\n';
-  });
-  const xref=pdf.length;
-  pdf+=`xref\n0 ${objects.length+1}\n0000000000 65535 f \n`;
-  for(let i=1;i<=objects.length;i++)pdf+=String(offsets[i]).padStart(10,'0')+' 00000 n \n';
-  pdf+=`trailer\n<< /Size ${objects.length+1} /Root ${catalog} 0 R >>\nstartxref\n${xref}\n%%EOF`;
-
+  const pdf=buildPdf(objects,catalog);
   const blob=new Blob([pdf],{type:'application/pdf'});
   const url=URL.createObjectURL(blob),a=document.createElement('a');
   a.href=url;a.download='VIJU-MONEY-MANAGER-Cash-Banks.pdf';
