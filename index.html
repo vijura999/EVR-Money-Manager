@@ -1123,14 +1123,100 @@ function saveExpensesPDF(){
 }
 
 function saveUpcomingPDF(){
-  const up=document.getElementById('upcomingList')?.innerHTML||'';
-  const ov=document.getElementById('overdueList')?.innerHTML||'';
-  const html='<h2>Upcoming Expenses</h2><p>'+
-    (document.getElementById('upcomingTotal')?.textContent||'')+
-    '</p><div>'+up+'</div><h2>Overdue Expenses</h2><p>'+
-    (document.getElementById('overdueTotal')?.textContent||'')+
-    '</p><div>'+ov+'</div>';
-  pdfFromHTML('EVR Upcoming & Overdue Expenses',html,'EVR-Upcoming-Overdue.pdf');
+  // Dedicated A4 report for Upcoming + Overdue expenses.
+  // This does NOT use the normal text-only PDF generator, so the report
+  // keeps proper boxes, table borders, column lines, and page numbers.
+  const all=getExpenses();
+  const upcoming=all.filter(e=>statusOf(e)==='Pending');
+  const overdue=all.filter(e=>statusOf(e)==='Overdue');
+  const moneyPlain=n=>'INR '+Number(n||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const escPdf=s=>pdfEscapeText(String(s??''));
+  const wrap=(s,max)=>{
+    const words=String(s??'').split(/\s+/),out=[];let cur='';
+    words.forEach(w=>{const test=cur?cur+' '+w:w;if(test.length>max&&cur){out.push(cur);cur=w}else cur=test});
+    if(cur)out.push(cur);return out.length?out:[''];
+  };
+
+  const pages=[];
+  let page={ops:[],y:H-TOP};
+  const newPage=()=>{pages.push(page);page={ops:[],y:H-TOP};};
+  const line=(x1,y1,x2,y2,w=0.7)=>page.ops.push({k:'line',x1,y1,x2,y2,w});
+  const rect=(x,y,w,h)=>page.ops.push({k:'rect',x,y,w,h});
+  const fillRect=(x,y,w,h)=>page.ops.push({k:'fillRect',x,y,w,h});
+  const txt=(x,y,s,size=9,bold=false)=>page.ops.push({k:'text',x,y,s,size,bold});
+  const cellText=(x,y,w,s,size=8,bold=false)=>{
+    const max=Math.max(5,Math.floor(w/(size*0.53)));
+    const ls=wrap(s,max).slice(0,2);
+    ls.forEach((v,i)=>txt(x,y-i*(size+2),v,size,bold));
+    return ls.length;
+  };
+  const totalW=W-ML-MR;
+  const widths=[64,142,72,78,92,78];
+  const headers=['Date','Expense','Amount','Category','Person','Payment'];
+
+  function drawTitle(){
+    txt(ML,page.y,'VIJU MONEY MANAGER',18,true);page.y-=23;
+    txt(ML,page.y,'Upcoming & Overdue Expenses',12,true);page.y-=16;
+    txt(ML,page.y,'Generated: '+new Date().toLocaleString(),8,false);page.y-=18;
+  }
+  function drawSummary(){
+    const gap=8,bw=(totalW-gap*2)/3,bh=48;
+    const vals=[
+      ['Total Upcoming Expenses',moneyPlain(upcoming.reduce((s,e)=>s+Number(e.amount||0),0))],
+      ['Upcoming Count',String(upcoming.length)],
+      ['Total Overdue',moneyPlain(overdue.reduce((s,e)=>s+Number(e.amount||0),0))]
+    ];
+    vals.forEach((v,i)=>{const x=ML+i*(bw+gap);rect(x,page.y-bh,bw,bh);txt(x+9,page.y-15,v[0],8,false);txt(x+9,page.y-35,v[1],11,true)});
+    page.y-=bh+18;
+  }
+  function drawSection(title,rows){
+    if(page.y<100){newPage();drawTitle();}
+    txt(ML,page.y,title,12,true);page.y-=17;
+    const x0=ML,tw=widths.reduce((a,b)=>a+b,0),hh=25;
+    fillRect(x0,page.y-hh,tw,hh);
+    rect(x0,page.y-hh,tw,hh);
+    let x=x0;
+    headers.forEach((h,i)=>{txt(x+5,page.y-16,h,7.5,true);if(i>0)line(x,page.y,x,page.y-hh,0.7);x+=widths[i]});
+    line(x0,page.y,x0+tw,page.y,0.9);line(x0,page.y-hh,x0+tw,page.y-hh,0.9);page.y-=hh;
+    if(!rows.length){
+      const rh=28;rect(x0,page.y-rh,tw,rh);txt(x0+8,page.y-17,'No '+title.toLowerCase()+'.',8,false);line(x0,page.y-rh,x0+tw,page.y-rh,0.6);page.y-=rh;return;
+    }
+    rows.forEach(r=>{
+      const vals=[fmtDate(r.dueDate||r.date||''),r.name||'',moneyPlain(r.amount),r.category||'',r.person||'',r.payment||''];
+      let maxLines=1;vals.forEach((v,i)=>{maxLines=Math.max(maxLines,wrap(v,Math.max(5,Math.floor(widths[i]/(7.4*0.53)))).length)});
+      const rh=Math.max(30,12+maxLines*9);
+      if(page.y-rh<42){newPage();drawTitle();txt(ML,page.y,title+' (continued)',12,true);page.y-=17;fillRect(x0,page.y-hh,tw,hh);rect(x0,page.y-hh,tw,hh);let xx=x0;headers.forEach((h,i)=>{txt(xx+5,page.y-16,h,7.5,true);if(i>0)line(xx,page.y,xx,page.y-hh,.7);xx+=widths[i]});line(x0,page.y,x0+tw,page.y,.9);line(x0,page.y-hh,x0+tw,page.y-hh,.9);page.y-=hh;}
+      const top=page.y,bottom=top-rh;rect(x0,bottom,tw,rh);let xx=x0;
+      vals.forEach((v,i)=>{cellText(xx+5,top-13,widths[i]-10,v,7.4,false);if(i>0)line(xx,top,xx,bottom,.6);xx+=widths[i]});
+      line(x0,bottom,x0+tw,bottom,.6);page.y=bottom;
+    });
+    page.y-=18;
+  }
+
+  drawTitle();drawSummary();drawSection('Upcoming Expenses',upcoming);drawSection('Overdue Expenses',overdue);
+  pages.push(page);
+  pages.forEach((p,i)=>p.ops.push({k:'text',x:W-MR-42,y:20,s:(i+1)+' / '+pages.length,size:7,bold:false}));
+
+  const objects=[];const catalog=1,pagesObj=2,font=3,fontBold=4;
+  objects[font-1]='<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>';
+  objects[fontBold-1]='<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>';
+  const pageIds=[];const addObject=obj=>{objects.push(obj);return objects.length};
+  pages.forEach(p=>{
+    let stream='';
+    p.ops.forEach(o=>{
+      if(o.k==='text')stream+=`BT\n/F${o.bold?2:1} ${o.size} Tf\n1 0 0 1 ${o.x.toFixed(2)} ${o.y.toFixed(2)} Tm (${escPdf(o.s)}) Tj\nET\n`;
+      else if(o.k==='line')stream+=`${o.w} w\n${o.x1.toFixed(2)} ${o.y1.toFixed(2)} m\n${o.x2.toFixed(2)} ${o.y2.toFixed(2)} l\nS\n`;
+      else if(o.k==='rect')stream+=`0.8 w\n${o.x.toFixed(2)} ${o.y.toFixed(2)} ${o.w.toFixed(2)} ${o.h.toFixed(2)} re\nS\n`;
+      else if(o.k==='fillRect')stream+=`0.86 g\n${o.x.toFixed(2)} ${o.y.toFixed(2)} ${o.w.toFixed(2)} ${o.h.toFixed(2)} re\nf\n0 g\n`;
+    });
+    const contentId=addObject(`<< /Length ${stream.length} >>\nstream\n${stream}endstream`);
+    const pageId=addObject(`<< /Type /Page /Parent ${pagesObj} 0 R /MediaBox [0 0 ${W} ${H}] /Resources << /Font << /F1 ${font} 0 R /F2 ${fontBold} 0 R >> >> /Contents ${contentId} 0 R >>`);pageIds.push(pageId);
+  });
+  objects[catalog-1]=`<< /Type /Catalog /Pages ${pagesObj} 0 R >>`;
+  objects[pagesObj-1]=`<< /Type /Pages /Kids [${pageIds.map(x=>x+' 0 R').join(' ')}] /Count ${pageIds.length} >>`;
+  let pdf='%PDF-1.4\n',offsets=[0];objects.forEach((obj,i)=>{offsets[i+1]=pdf.length;pdf+=(i+1)+' 0 obj\n'+obj+'\nendobj\n'});
+  const xref=pdf.length;pdf+=`xref\n0 ${objects.length+1}\n0000000000 65535 f \n`;for(let i=1;i<=objects.length;i++)pdf+=String(offsets[i]).padStart(10,'0')+' 00000 n \n';pdf+=`trailer\n<< /Size ${objects.length+1} /Root ${catalog} 0 R >>\nstartxref\n${xref}\n%%EOF`;
+  const blob=new Blob([pdf],{type:'application/pdf'});const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='VIJU-MONEY-MANAGER-Upcoming-Overdue.pdf';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);
 }
 
 
