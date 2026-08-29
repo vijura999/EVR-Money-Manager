@@ -493,6 +493,14 @@ function renderUpcoming(){
   const upTotal=upcoming.reduce((s,e)=>s+Number(e.amount||0),0);
   const ovTotal=overdue.reduce((s,e)=>s+Number(e.amount||0),0);
 
+  // Update the Upcoming Expenses summary cards at the top of the page.
+  const grandTotal=document.getElementById('upcomingGrandTotal');
+  const grandCount=document.getElementById('upcomingGrandCount');
+  const overdueTotal=document.getElementById('upcomingOverdueTotal');
+  if(grandTotal) grandTotal.textContent=money(upTotal);
+  if(grandCount) grandCount.textContent=upcoming.length;
+  if(overdueTotal) overdueTotal.textContent=money(ovTotal);
+
   const upCount=document.getElementById('upcomingTotal');
   if(upCount) upCount.textContent=upcoming.length+" expenses · "+money(upTotal);
 
@@ -1135,7 +1143,200 @@ function renderBanks(){ensureBanks();const list=document.getElementById('bankLis
 function editBank(id){ensureBanks();const b=db.banks.find(x=>x.id===id);if(!b)return;const name=prompt('Bank / Account Name:',b.name);if(name===null)return;const clean=name.trim();if(!clean)return alert('Bank name cannot be empty.');const raw=prompt('Available Balance (₹):',String(Number(b.balance||0)));if(raw===null)return;const balance=Number(raw);if(!Number.isFinite(balance)||balance<0)return alert('Enter a valid non-negative balance.');b.name=clean;b.balance=balance;b.openingBalance=balance;saveDB();toast('Bank updated')}
 function deleteBank(id){if(id==='cash')return alert('Cash cannot be deleted.');if(!confirm('Delete this bank?'))return;db.banks=db.banks.filter(b=>b.id!==id);saveDB();renderBanks()}
 function saveBankTransaction(){ensureBanks();const type=document.getElementById('txType').value,from=document.getElementById('txFrom').value,to=document.getElementById('txTo').value,amount=Number(document.getElementById('txAmount').value||0),note=document.getElementById('txNote').value.trim();if(amount<=0)return alert('Enter a valid amount.');if(type==='transfer'){if(!from||!to||from===to)return alert('Choose different From and To accounts.');if(accountBalance(from)<amount)return alert('Insufficient available balance.');db.banks.find(b=>b.id===from).balance-=amount;db.banks.find(b=>b.id===to).balance+=amount}else if(type==='deposit'){if(!to)return alert('Choose the bank receiving the cash deposit.');db.banks.find(b=>b.id===to).balance+=amount}else if(type==='atm'){if(!from)return alert('Choose the bank.');if(accountBalance(from)<amount)return alert('Insufficient available balance.');db.banks.find(b=>b.id===from).balance-=amount;/* ATM withdrawal intentionally does not add to Cash */}else if(type==='adjust'){if(!to)return alert('Choose an account.');db.banks.find(b=>b.id===to).balance+=amount}const f=db.banks.find(b=>b.id===from),t=db.banks.find(b=>b.id===to);db.bankTransactions.push({id:'tx_'+Date.now(),date:today(),type,from,to,fromName:f?.name||'',toName:t?.name||'',amount,note});saveDB();renderBanks();toast('Transaction saved')}
-function saveBankTransactionsPDF(){ensureBanks();const balanceRows=db.banks.map(b=>({date:today(),name:b.name,amount:Number(b.balance||0),category:'Available Balance',person:'',payment:'-',status:'Current Balance',dueDate:''}));const txRows=db.bankTransactions.slice().reverse().map(t=>({date:t.date,name:t.type+' '+(t.note||''),amount:t.amount,category:'Bank Transaction',person:'',payment:(t.fromName||'-')+' → '+(t.toName||'-'),status:'Completed',dueDate:''}));saveArrayPDF('EVR Bank Transactions & Available Balances',balanceRows.concat(txRows),'EVR-Bank-Transactions.pdf')}
+function saveBankTransactionsPDF(){
+  ensureBanks();
+
+  const W=595,H=842,ML=36,MR=36,TOP=38,BOTTOM=42;
+  const rows=[];
+  db.banks.forEach(b=>{
+    rows.push({
+      date:today(),
+      name:b.name||'Unnamed Account',
+      amount:Number(b.balance||0),
+      category:'Available Balance',
+      person:'-',
+      payment:'-',
+      status:'Current Balance'
+    });
+  });
+  db.bankTransactions.slice().reverse().forEach(t=>{
+    const typeMap={transfer:'Bank Transfer',deposit:'Cash Deposit',cashbank:'Cash → Bank',atm:'ATM Withdrawal',adjust:'Balance Adjustment'};
+    rows.push({
+      date:t.date||today(),
+      name:typeMap[t.type]||String(t.type||'Bank Transaction'),
+      amount:Number(t.amount||0),
+      category:'Bank Transaction',
+      person:'-',
+      payment:(t.fromName||'-')+' → '+(t.toName||'-'),
+      status:'Completed'
+    });
+  });
+
+  const escPdf=s=>pdfEscapeText(String(s??''));
+  const moneyPlain=n=>'INR '+Number(n||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const wrap=(s,max)=>{
+    const words=String(s??'').split(/\s+/), out=[]; let cur='';
+    words.forEach(w=>{
+      const test=cur?cur+' '+w:w;
+      if(test.length>max && cur){out.push(cur);cur=w}else cur=test;
+    });
+    if(cur)out.push(cur);
+    return out.length?out:[''];
+  };
+
+  // A4 styled PDF: title, summary boxes, and a clearly lined table.
+  const title='VIJU MONEY MANAGER';
+  const subtitle='Cash & Banks — Transactions & Available Balances';
+  const totalBalance=db.banks.reduce((s,b)=>s+Number(b.balance||0),0);
+  const bankCount=db.banks.length;
+  const txCount=db.bankTransactions.length;
+
+  const pages=[];
+  let page={ops:[], y:H-TOP};
+  const newPage=()=>{pages.push(page);page={ops:[],y:H-TOP};};
+  const line=(x1,y1,x2,y2,w=0.7)=>page.ops.push({k:'line',x1,y1,x2,y2,w});
+  const rect=(x,y,w,h,fill=false)=>page.ops.push({k:'rect',x,y,w,h,fill});
+  const txt=(x,y,s,size=9,bold=false)=>page.ops.push({k:'text',x,y,s,size,bold});
+  const cellText=(x,y,w,s,size=8)=>{
+    const max=Math.max(8,Math.floor(w/(size*0.53)));
+    const lines=wrap(s,max).slice(0,2);
+    lines.forEach((v,i)=>txt(x,y-i*(size+2),v,size,false));
+    return lines.length;
+  };
+
+  const drawHeader=()=>{
+    txt(ML,page.y,title,18,true); page.y-=23;
+    txt(ML,page.y,subtitle,11,false); page.y-=16;
+    txt(ML,page.y,'Generated: '+new Date().toLocaleString(),8,false); page.y-=17;
+
+    const gap=8, bw=(W-ML-MR-gap*2)/3, bh=47;
+    const vals=[
+      ['Total Available Balance',moneyPlain(totalBalance)],
+      ['Accounts',String(bankCount)],
+      ['Bank Transactions',String(txCount)]
+    ];
+    vals.forEach((v,i)=>{
+      const x=ML+i*(bw+gap);
+      rect(x,page.y-bh,bw,bh,false);
+      txt(x+9,page.y-15,v[0],8,false);
+      txt(x+9,page.y-34,v[1],11,true);
+    });
+    page.y-=bh+16;
+  };
+
+  const headers=['Date','Account / Transaction','Amount','Category','From / To','Status'];
+  const widths=[60,138,72,82,108,63];
+  const drawTableHeader=()=>{
+    const h=25,x0=ML;
+    rect(x0,page.y-h,widths.reduce((a,b)=>a+b,0),h,false);
+    let x=x0;
+    headers.forEach((htext,i)=>{
+      txt(x+5,page.y-16,htext,7.5,true);
+      if(i>0)line(x,page.y,x,page.y-h,0.7);
+      x+=widths[i];
+    });
+    line(x0,page.y,x0+widths.reduce((a,b)=>a+b,0),page.y,0.9);
+    line(x0,page.y-h,x0+widths.reduce((a,b)=>a+b,0),page.y-h,0.9);
+    page.y-=h;
+  };
+
+  drawHeader();
+  drawTableHeader();
+
+  const rowHeightFor=r=>{
+    const vals=[
+      r.date||'',
+      r.name||'',
+      moneyPlain(r.amount),
+      r.category||'',
+      r.payment||'-',
+      r.status||''
+    ];
+    let maxLines=1;
+    vals.forEach((v,i)=>{
+      const max=Math.max(8,Math.floor(widths[i]/(7.6*0.53)));
+      maxLines=Math.max(maxLines,wrap(v,max).length);
+    });
+    return Math.max(30,12+maxLines*9);
+  };
+
+  rows.forEach((r,idx)=>{
+    const rh=rowHeightFor(r);
+    if(page.y-rh < BOTTOM+18){
+      newPage();
+      drawTableHeader();
+    }
+    const x0=ML,totalW=widths.reduce((a,b)=>a+b,0),top=page.y,bottom=top-rh;
+    rect(x0,bottom,totalW,rh,false);
+    let x=x0;
+    const vals=[
+      r.date||'',
+      r.name||'',
+      moneyPlain(r.amount),
+      r.category||'',
+      r.payment||'-',
+      r.status||''
+    ];
+    vals.forEach((v,i)=>{
+      cellText(x+5,top-13,widths[i]-10,v,7.6);
+      if(i>0)line(x,top,x,bottom,0.6);
+      x+=widths[i];
+    });
+    line(x0,bottom,x0+totalW,bottom,0.6);
+    page.y=bottom;
+  });
+
+  if(!rows.length){
+    txt(ML,page.y-16,'No bank transactions or account balances found.',9,false);
+  }
+
+  // Footer on every page.
+  pages.forEach((p,i)=>{
+    p.ops.push({k:'text',x:W-MR-42,y:20,s:(i+1)+' / '+pages.length,size:7,bold:false});
+  });
+
+  const objects=[];
+  const catalog=1,pagesObj=2,font=3,fontBold=4;
+  objects[font-1]='<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>';
+  objects[fontBold-1]='<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>';
+  const pageIds=[];
+  const addObject=obj=>{objects.push(obj);return objects.length;};
+
+  pages.forEach(p=>{
+    let stream='';
+    p.ops.forEach(o=>{
+      if(o.k==='text'){
+        stream+=`BT\n/F${o.bold?2:1} ${o.size} Tf\n1 0 0 1 ${o.x.toFixed(2)} ${o.y.toFixed(2)} Tm (${escPdf(o.s)}) Tj\nET\n`;
+      }else if(o.k==='line'){
+        stream+=`${o.w} w\n${o.x1.toFixed(2)} ${o.y1.toFixed(2)} m\n${o.x2.toFixed(2)} ${o.y2.toFixed(2)} l\nS\n`;
+      }else if(o.k==='rect'){
+        stream+=`${o.w} w\n${o.x.toFixed(2)} ${o.y.toFixed(2)} ${o.w.toFixed(2)} ${o.h.toFixed(2)} re\nS\n`;
+      }
+    });
+    const contentId=addObject(`<< /Length ${stream.length} >>\nstream\n${stream}endstream`);
+    const pageId=addObject(`<< /Type /Page /Parent ${pagesObj} 0 R /MediaBox [0 0 ${W} ${H}] /Resources << /Font << /F1 ${font} 0 R /F2 ${fontBold} 0 R >> >> /Contents ${contentId} 0 R >>`);
+    pageIds.push(pageId);
+  });
+
+  objects[catalog-1]=`<< /Type /Catalog /Pages ${pagesObj} 0 R >>`;
+  objects[pagesObj-1]=`<< /Type /Pages /Kids [${pageIds.map(x=>x+' 0 R').join(' ')}] /Count ${pageIds.length} >>`;
+
+  let pdf='%PDF-1.4\n',offsets=[0];
+  objects.forEach((obj,i)=>{
+    offsets[i+1]=pdf.length;
+    pdf+=(i+1)+' 0 obj\n'+obj+'\nendobj\n';
+  });
+  const xref=pdf.length;
+  pdf+=`xref\n0 ${objects.length+1}\n0000000000 65535 f \n`;
+  for(let i=1;i<=objects.length;i++)pdf+=String(offsets[i]).padStart(10,'0')+' 00000 n \n';
+  pdf+=`trailer\n<< /Size ${objects.length+1} /Root ${catalog} 0 R >>\nstartxref\n${xref}\n%%EOF`;
+
+  const blob=new Blob([pdf],{type:'application/pdf'});
+  const url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download='VIJU-MONEY-MANAGER-Cash-Banks.pdf';
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
+}
 
 function renderAll(){ensureBanks();fillSelect('filterPerson',db.people,'All People');fillSelect('filterCategory',db.categories,'All Categories');renderDashboard();renderExpenses();renderUpcoming();renderPeople();renderCategories();renderReports();renderBanks();}
 
