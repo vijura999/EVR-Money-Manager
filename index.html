@@ -110,12 +110,12 @@
  </div>
 </div></section>
 
-<section id="overdue" class="page"><h1>5. Overdue Expenses</h1><div class="card"><h2>All Overdue Expenses</h2><div id="overduePageList"></div></div></section>
-<section id="people" class="page"><h1>6. People</h1><div class="grid2">
+<section id="overdue" class="page"><h1>5. Overdue Expenses</h1><div class="card"><div style="display:flex;justify-content:space-between;align-items:center"><h2>All Overdue Expenses</h2><button class="btn primary" onclick="saveOverduePDF()">📄 Save Overdue as PDF</button></div><div id="overduePageList"></div></div></section>
+<section id="people" class="page"><h1>6. People</h1><div class="buttons" style="margin-bottom:14px"><button class="btn primary" onclick="savePeoplePDF()">📄 Save People as PDF</button></div><div class="grid2">
 <div class="card"><h2>Add Person</h2><div class="group"><label>Person Name</label><input id="newPerson" placeholder="Person name"></div><div class="buttons"><button class="btn success" onclick="addPerson()">Add Person</button></div></div>
 <div class="card"><h2>People List</h2><div id="peopleList"></div></div></div></section>
 
-<section id="categories" class="page"><h1>Categories</h1><div class="grid2">
+<section id="categories" class="page"><h1>Categories</h1><div class="buttons" style="margin-bottom:14px"><button class="btn primary" onclick="saveCategoriesPDF()">📄 Save Categories as PDF</button></div><div class="grid2">
 <div class="card"><h2>Add Category</h2><div class="group"><label>Category Name</label><input id="newCategory" placeholder="Category name"></div><div class="buttons"><button class="btn success" onclick="addCategory()">Add Category</button></div></div>
 <div class="card"><h2>Category List</h2><div id="categoryList"></div></div></div></section>
 
@@ -189,7 +189,7 @@
 <div class="group full"><label>Note</label><input id="txNote"></div></div><div class="buttons"><button class="btn primary" onclick="saveBankTransaction()">Save Transaction</button></div></div>
 </div>
 <div class="card"><h2>Available Balances</h2><div id="bankBalances" class="currency-grid"></div></div>
-<div class="card"><h2>9. Cash &amp; Banks — PDF Report</h2><div class="buttons"><button class="btn success" onclick="saveBankTransactionsPDF()">Save Bank Transactions PDF</button></div><div class="table-wrap"><table><thead><tr><th>Date</th><th>Type</th><th>From</th><th>To</th><th>Amount</th><th>Note</th></tr></thead><tbody id="bankTxTable"></tbody></table></div></div>
+<div class="card"><h2>9. Cash &amp; Banks — Transactions</h2><div class="table-wrap"><table><thead><tr><th>Date</th><th>Type</th><th>From</th><th>To</th><th>Amount</th><th>Note</th></tr></thead><tbody id="bankTxTable"></tbody></table></div></div>
 </div>
 <div id="bankSubTransfer" class="bank-sub"><div class="card"><h2>8A. Bank Transfer</h2><div class="form-grid"><div class="group"><label>From Bank</label><select id="subTransferFrom"></select></div><div class="group"><label>To Bank</label><select id="subTransferTo"></select></div><div class="group"><label>Amount</label><input id="subTransferAmount" type="number" min="0" step="0.01"></div><div class="group"><label>Date</label><input id="subTransferDate" type="date"></div><div class="group full"><label>Notes</label><input id="subTransferNote"></div></div><div class="buttons"><button class="btn primary" onclick="saveBankSubTransaction('transfer')">Save</button></div><div class="notice">This transfers money between added accounts and is not an expense.</div></div></div>
 <div id="bankSubDeposit" class="bank-sub"><div class="card"><h2>8B. Cash Deposit</h2><div class="form-grid"><div class="group"><label>Deposit Into</label><select id="subDepositTo"></select></div><div class="group"><label>Amount</label><input id="subDepositAmount" type="number" min="0" step="0.01"></div><div class="group"><label>Date</label><input id="subDepositDate" type="date"></div><div class="group full"><label>Notes</label><input id="subDepositNote"></div></div><div class="buttons"><button class="btn primary" onclick="saveBankSubTransaction('deposit')">Save</button></div><div class="notice">Cash is not automatically changed by an ATM withdrawal. Add cash separately when you actually receive it.</div></div></div>
@@ -208,7 +208,7 @@
 <div class="card">
 <h2>Backup Reminder</h2>
 <p>
-Your EVR data is saved automatically in this browser.
+Your VIJU MONEY MANAGER data is saved automatically in this browser.
 This reminder helps you remember to download a portable JSON backup.
 </p>
 
@@ -672,196 +672,273 @@ function periodCSV(){downloadCSV(reportData(),'EVR-'+document.getElementById('re
 function personCSV(){let p=document.getElementById('personReportPerson').value;downloadCSV(getExpenses().filter(e=>e.person===p),'EVR-'+p.replace(/\s+/g,'-')+'-report.csv')}
 
 
+function pdfSafeText(text){
+  return String(text ?? '')
+    .replace(/₹/g,'INR ')
+    .replace(/→/g,'->')
+    .replace(/←/g,'<-')
+    .replace(/–|—/g,'-')
+    .replace(/•/g,'-')
+    .replace(/·/g,'-')
+    .replace(/[“”]/g,'"')
+    .replace(/[‘’]/g,"'")
+    .replace(/\u00a0/g,' ')
+    .replace(/[^\x20-\x7E]/g,'');
+}
+
 function pdfEscapeText(text){
-  // Keep generated PDFs compatible with the built-in PDF viewer.
-  // The simple Helvetica PDF font is ASCII-only, so convert symbols/accents safely.
-  const ascii=String(text??"")
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g,"")
-    .replace(/₹/g,"INR ")
-    .replace(/[→➜➡]/g,"->")
-    .replace(/[—–]/g,"-")
-    .replace(/[•·]/g,"-")
-    .replace(/[^\x20-\x7E]/g,"?");
-  return ascii.replace(/\\/g,"\\\\").replace(/\(/g,"\\(").replace(/\)/g,"\\)").replace(/\r/g," ").replace(/\n/g," ");
+  return pdfSafeText(text)
+    .replace(/\\/g,'\\\\')
+    .replace(/\(/g,'\\(')
+    .replace(/\)/g,'\\)')
+    .replace(/\r/g,' ')
+    .replace(/\n/g,' ');
 }
 
-function buildPdf(objects,catalog=1){
-  // PDF xref offsets are BYTE offsets, not JavaScript character offsets.
-  // Using TextEncoder prevents corrupted/blank PDFs when any non-ASCII text occurs.
-  const chunks=[];
-  let byteLength=0;
-  const offsets=[0];
+function pdfWrap(text,maxChars){
+  const words=String(text ?? '').split(/\s+/).filter(Boolean);
+  const out=[]; let cur='';
+  words.forEach(word=>{
+    const w=pdfSafeText(word);
+    if(!w)return;
+    const test=cur?cur+' '+w:w;
+    if(test.length>maxChars && cur){out.push(cur);cur=w}else cur=test;
+  });
+  if(cur)out.push(cur);
+  return out.length?out:[''];
+}
+
+function pdfMoney(n){
+  return 'INR '+Number(n||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+
+function buildPdf(objects,catalogId){
   const enc=new TextEncoder();
-  const push=(str)=>{const bytes=enc.encode(str);chunks.push(bytes);byteLength+=bytes.length;};
+  let bytes=[];
+  const appendText=t=>{const b=enc.encode(t);bytes.push(...b)};
+  appendText('%PDF-1.4\n%\xE2\xE3\xCF\xD3\n');
+  const offsets=[0];
   objects.forEach((obj,i)=>{
-    offsets[i+1]=byteLength;
-    push((i+1)+" 0 obj\n"+obj+"\nendobj\n");
+    offsets[i+1]=bytes.length;
+    appendText((i+1)+' 0 obj\n'+obj+'\nendobj\n');
   });
-  const xref=byteLength;
-  let tail=`xref\n0 ${objects.length+1}\n0000000000 65535 f \n`;
-  for(let i=1;i<=objects.length;i++)tail+=String(offsets[i]).padStart(10,"0")+" 00000 n \n";
-  tail+=`trailer\n<< /Size ${objects.length+1} /Root ${catalog} 0 R >>\nstartxref\n${xref}\n%%EOF`;
-  push(tail);
-  const out=new Uint8Array(byteLength);
-  let pos=0;
-  for(const b of chunks){out.set(b,pos);pos+=b.length;}
-  return out;
+  const xrefOffset=bytes.length;
+  appendText('xref\n0 '+(objects.length+1)+'\n');
+  appendText('0000000000 65535 f \n');
+  for(let i=1;i<=objects.length;i++)appendText(String(offsets[i]).padStart(10,'0')+' 00000 n \n');
+  appendText('trailer\n<< /Size '+(objects.length+1)+' /Root '+catalogId+' 0 R >>\nstartxref\n'+xrefOffset+'\n%%EOF');
+  return new Uint8Array(bytes);
 }
 
-function wrapPdfText(text,maxChars){
-  const words=String(text??"").split(/\s+/),lines=[];
-  let current="";
-  for(const word of words){
-    const test=current?current+" "+word:word;
-    if(test.length>maxChars && current){lines.push(current);current=word;}
-    else current=test;
+function pdfDownload(bytes,filename){
+  const blob=new Blob([bytes],{type:'application/pdf'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=filename;a.style.display='none';
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),2000);
+}
+
+function createStyledTablePDF(options){
+  const W=595,H=842,ML=30,MR=30,TOP=34,BOTTOM=38;
+  const usable=W-ML-MR;
+  const pages=[];
+  let page={ops:[],y:H-TOP};
+  const newPage=()=>{pages.push(page);page={ops:[],y:H-TOP};};
+  const text=(x,y,s,size=8,bold=false)=>page.ops.push({k:'text',x,y,s:pdfSafeText(s),size,bold});
+  const line=(x1,y1,x2,y2,w=.6)=>page.ops.push({k:'line',x1,y1,x2,y2,w});
+  const rect=(x,y,w,h)=>page.ops.push({k:'rect',x,y,w,h});
+  const fill=(x,y,w,h)=>page.ops.push({k:'fill',x,y,w,h});
+  const wrapCell=(x,top,w,s,size=7.2,bold=false)=>{
+    const max=Math.max(5,Math.floor((w-8)/(size*.52)));
+    const ls=pdfWrap(s,max).slice(0,3);
+    ls.forEach((v,i)=>text(x+4,top-12-i*(size+2),v,size,bold));
+    return ls.length;
+  };
+  const drawFooter=()=>{};
+  const title=options.title||'VIJU MONEY MANAGER';
+  const subtitle=options.subtitle||'';
+  const headers=options.headers||[];
+  const widths=options.widths||headers.map(()=>usable/headers.length);
+  const rows=options.rows||[];
+  const summary=options.summary||[];
+  const tableW=widths.reduce((a,b)=>a+b,0);
+
+  function drawPageTitle(){
+    text(ML,page.y,title,18,true);page.y-=23;
+    if(subtitle){text(ML,page.y,subtitle,11,false);page.y-=16;}
+    text(ML,page.y,'Generated: '+new Date().toLocaleString(),7.5,false);page.y-=17;
   }
-  if(current)lines.push(current);
-  return lines.length?lines:[""];
-}
+  function drawSummary(){
+    if(!summary.length)return;
+    const gap=7,cols=Math.min(4,summary.length),bw=(usable-gap*(cols-1))/cols,bh=43;
+    summary.forEach((item,i)=>{
+      const col=i%cols,row=Math.floor(i/cols);
+      if(col===0 && i>0)page.y-=bh+7;
+      const x=ML+col*(bw+gap),y=page.y-bh;
+      rect(x,y,bw,bh);
+      text(x+7,page.y-14,item[0],7,false);
+      text(x+7,page.y-31,item[1],10.5,true);
+    });
+    page.y-=Math.ceil(summary.length/cols)*(bh+7)+5;
+  }
+  function drawTableHeader(){
+    const h=25,x0=ML;
+    fill(x0,page.y-h,tableW,h);rect(x0,page.y-h,tableW,h);
+    let x=x0;
+    headers.forEach((htext,i)=>{
+      text(x+4,page.y-16,htext,7.2,true);
+      if(i>0)line(x,page.y,x,page.y-h,.65);
+      x+=widths[i];
+    });
+    line(x0,page.y,x0+tableW,page.y,.8);
+    line(x0,page.y-h,x0+tableW,page.y-h,.8);
+    page.y-=h;
+  }
+  function drawRow(row){
+    const vals=options.rowValues?options.rowValues(row):row;
+    let maxLines=1;
+    vals.forEach((v,i)=>maxLines=Math.max(maxLines,pdfWrap(v,Math.max(5,Math.floor((widths[i]-8)/(7.2*.52)))).length));
+    const rh=Math.max(27,11+maxLines*9);
+    if(page.y-rh < BOTTOM+22){
+      newPage();drawPageTitle();drawTableHeader();
+    }
+    const top=page.y,bottom=top-rh,x0=ML;
+    rect(x0,bottom,tableW,rh);
+    let x=x0;
+    vals.forEach((v,i)=>{wrapCell(x,top,widths[i],v,7.2,false);if(i>0)line(x,top,x,bottom,.5);x+=widths[i];});
+    line(x0,bottom,x0+tableW,bottom,.55);
+    page.y=bottom;
+  }
 
-function createPdf(title,rows){
-  const pageW=595,pageH=842,margin=36,lineH=12;
-  const src=[title,"EVR Personal Expense Manager","Generated: "+new Date().toLocaleString(),""];
-  const total=rows.reduce((s,e)=>s+Number(e.amount||0),0);
-  src.push("Total: INR "+total.toFixed(2)+"    Expenses: "+rows.length,"");
-  src.push("Date | Expense | Amount | Category | Person | Payment | Status");
-  src.push("----------------------------------------------------------------");
-  if(!rows.length)src.push("No expenses found.");
-  rows.forEach(e=>{
-    src.push(`${e.date||""} | ${e.name||""} | INR ${Number(e.amount||0).toFixed(2)} | ${e.category||""} | ${e.person||""} | ${e.payment||""} | ${statusOf(e)}`);
-    if(e.dueDate)src.push("Due Date: "+e.dueDate);
-    if(e.notes)src.push("Notes: "+e.notes);
-    src.push("");
+  drawPageTitle();drawSummary();
+  if(headers.length){drawTableHeader();
+    if(rows.length)rows.forEach(drawRow);
+    else {const rh=28;rect(ML,page.y-rh,tableW,rh);text(ML+7,page.y-17,options.emptyText||'No records found.',8,false);line(ML,page.y-rh,ML+tableW,page.y-rh,.5);page.y-=rh;}
+  }
+  if(options.extraSections){
+    options.extraSections.forEach(sec=>{
+      if(page.y<100){newPage();drawPageTitle();}
+      page.y-=12;text(ML,page.y,sec.title,11,true);page.y-=16;
+      if(sec.headers){
+        const oldHeaders=options.headers,oldWidths=options.widths,oldValues=options.rowValues;
+        options.headers=sec.headers;options.widths=sec.widths||sec.headers.map(()=>usable/sec.headers.length);options.rowValues=sec.rowValues;
+        drawTableHeader();
+        (sec.rows||[]).forEach(drawRow);
+        options.headers=oldHeaders;options.widths=oldWidths;options.rowValues=oldValues;
+      }
+    });
+  }
+  if(!pages.length)pages.push(page);else if(pages[pages.length-1]!==page)pages.push(page);
+  pages.forEach((p,i)=>{
+    p.ops.push({k:'text',x:ML,y:18,s:'VIJU MONEY MANAGER',size:7,bold:false});
+    p.ops.push({k:'text',x:W-MR-48,y:18,s:'Page '+(i+1)+' of '+pages.length,size:7,bold:false});
   });
 
-  const lines=[];
-  src.forEach(s=>wrapPdfText(s,92).forEach(x=>lines.push(x)));
-  const perPage=58,pages=[];
-  for(let i=0;i<lines.length;i+=perPage)pages.push(lines.slice(i,i+perPage));
-  if(!pages.length)pages.push([""]);
-
-  const objects=[];
-  const catalog=1,pagesObj=2,font=3;
+  const objects=[];const catalog=1,pagesObj=2,font=3,fontBold=4;
   objects[font-1]='<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>';
+  objects[fontBold-1]='<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>';
+  const addObject=o=>{objects.push(o);return objects.length;};
   const pageIds=[];
-
-  function addObject(obj){objects.push(obj);return objects.length;}
-
-  pages.forEach(page=>{
-    let stream="BT\n",y=pageH-margin;
-    page.forEach((line,i)=>{
-      stream+=`/F1 ${i===0?16:9} Tf\n1 0 0 1 ${margin} ${y} Tm (${pdfEscapeText(line)}) Tj\n`;
-      y-=lineH;
+  pages.forEach(p=>{
+    let stream='';
+    p.ops.forEach(o=>{
+      if(o.k==='text')stream+=`BT\n/F${o.bold?2:1} ${o.size} Tf\n1 0 0 1 ${o.x.toFixed(2)} ${o.y.toFixed(2)} Tm (${pdfEscapeText(o.s)}) Tj\nET\n`;
+      else if(o.k==='line')stream+=`${o.w} w\n${o.x1.toFixed(2)} ${o.y1.toFixed(2)} m\n${o.x2.toFixed(2)} ${o.y2.toFixed(2)} l\nS\n`;
+      else if(o.k==='rect')stream+=`.65 w\n${o.x.toFixed(2)} ${o.y.toFixed(2)} ${o.w.toFixed(2)} ${o.h.toFixed(2)} re\nS\n`;
+      else if(o.k==='fill')stream+=`.90 g\n${o.x.toFixed(2)} ${o.y.toFixed(2)} ${o.w.toFixed(2)} ${o.h.toFixed(2)} re\nf\n0 g\n`;
     });
-    stream+="ET";
-    const contentId=addObject(`<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`);
-    const pageId=addObject(`<< /Type /Page /Parent ${pagesObj} 0 R /MediaBox [0 0 ${pageW} ${pageH}] /Resources << /Font << /F1 ${font} 0 R >> >> /Contents ${contentId} 0 R >>`);
+    const streamBytes=new TextEncoder().encode(stream);
+    const contentId=addObject(`<< /Length ${streamBytes.length} >>\nstream\n${stream}endstream`);
+    const pageId=addObject(`<< /Type /Page /Parent ${pagesObj} 0 R /MediaBox [0 0 ${W} ${H}] /Resources << /Font << /F1 ${font} 0 R /F2 ${fontBold} 0 R >> >> /Contents ${contentId} 0 R >>`);
     pageIds.push(pageId);
   });
-
   objects[catalog-1]=`<< /Type /Catalog /Pages ${pagesObj} 0 R >>`;
-  objects[pagesObj-1]=`<< /Type /Pages /Kids [${pageIds.map(x=>x+" 0 R").join(" ")}] /Count ${pageIds.length} >>`;
-
+  objects[pagesObj-1]=`<< /Type /Pages /Kids [${pageIds.map(id=>id+' 0 R').join(' ')}] /Count ${pageIds.length} >>`;
   return buildPdf(objects,catalog);
 }
 
-function saveArrayPDF(title,rows,filename){
-  const pdf=createPdf(title,rows);
-  const blob=new Blob([pdf],{type:"application/pdf"});
-  const url=URL.createObjectURL(blob),a=document.createElement("a");
-  a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();
-  setTimeout(()=>URL.revokeObjectURL(url),1500);
+function saveTablePDF(options){
+  pdfDownload(createStyledTablePDF(options),options.filename||'VIJU-MONEY-MANAGER.pdf');
 }
 
-function reportData(){
-  const type=document.getElementById("reportType").value;
-  if(type==="daily"){
-    const d=document.getElementById("reportDate").value;
-    return getExpenses().filter(e=>e.date===d);
-  }
-  if(type==="monthly"){
-    const ym=document.getElementById("reportYear").value+"-"+String(document.getElementById("reportMonth").value).padStart(2,"0");
-    return getExpenses().filter(e=>e.date.startsWith(ym));
-  }
-  const y=String(document.getElementById("reportYear").value);
-  return getExpenses().filter(e=>e.date.startsWith(y));
+function expenseRowsForCurrentFilters(){
+  let q=(document.getElementById('search')?.value||'').toLowerCase();
+  let p=document.getElementById('filterPerson')?.value||'';
+  let c=document.getElementById('filterCategory')?.value||'';
+  let st=document.getElementById('filterStatus')?.value||'';
+  return getExpenses().filter(e=>(!q||(e.name+' '+e.notes+' '+e.category+' '+e.person).toLowerCase().includes(q))&&(!p||e.person===p)&&(!c||e.category===c)&&(!st||statusOf(e)===st));
 }
 
-function reportTitle(){
-  const type=document.getElementById("reportType").value;
-  if(type==="daily")return "Daily Report - "+document.getElementById("reportDate").value;
-  if(type==="monthly")return "Monthly Report - "+document.getElementById("reportMonth").selectedOptions[0].text+" "+document.getElementById("reportYear").value;
-  return "Yearly Report - "+document.getElementById("reportYear").value;
+const PDF_EXPENSE_HEADERS=['Date','Expense','Amount','Category','Person','Payment','Due Date','Status'];
+const PDF_EXPENSE_WIDTHS=[58,122,70,76,76,78,58,55];
+function expensePdfValues(e){return [fmtDate(e.date),e.name,pdfMoney(e.amount),e.category,e.person,e.payment,fmtDate(e.dueDate),statusOf(e)];}
+
+function saveDashboardPDF(){
+  const m=Number(document.getElementById('dashboardMonth')?.value||new Date().getMonth()+1);
+  const y=Number(document.getElementById('dashboardYear')?.value||new Date().getFullYear());
+  const ym=String(y)+'-'+String(m).padStart(2,'0');
+  const rows=getExpenses().filter(e=>(e.date||'').startsWith(ym));
+  const total=rows.reduce((s,e)=>s+Number(e.amount||0),0);
+  const paid=rows.filter(e=>statusOf(e)==='Paid').reduce((s,e)=>s+Number(e.amount||0),0);
+  const pending=rows.filter(e=>statusOf(e)==='Pending').reduce((s,e)=>s+Number(e.amount||0),0);
+  const overdue=rows.filter(e=>statusOf(e)==='Overdue').reduce((s,e)=>s+Number(e.amount||0),0);
+  saveTablePDF({title:'VIJU MONEY MANAGER',subtitle:'Dashboard Report - '+document.getElementById('dashboardMonth')?.selectedOptions[0]?.text+' '+y,summary:[['Total Expenses',pdfMoney(total)],['Paid',pdfMoney(paid)],['Pending',pdfMoney(pending)],['Overdue',pdfMoney(overdue)]],headers:PDF_EXPENSE_HEADERS,widths:PDF_EXPENSE_WIDTHS,rows,rowValues:expensePdfValues,emptyText:'No expenses found for this period.',filename:'VIJU-MONEY-MANAGER-Dashboard.pdf'});
 }
 
-function periodPDF(){
-  saveArrayPDF(reportTitle(),reportData(),"EVR-"+document.getElementById("reportType").value+"-report.pdf");
+function saveExpensesPDF(){
+  const rows=expenseRowsForCurrentFilters();
+  const total=rows.reduce((s,e)=>s+Number(e.amount||0),0);
+  const paid=rows.filter(e=>statusOf(e)==='Paid').reduce((s,e)=>s+Number(e.amount||0),0);
+  const pending=rows.filter(e=>statusOf(e)==='Pending').reduce((s,e)=>s+Number(e.amount||0),0);
+  const overdue=rows.filter(e=>statusOf(e)==='Overdue').reduce((s,e)=>s+Number(e.amount||0),0);
+  saveTablePDF({title:'VIJU MONEY MANAGER',subtitle:'Expenses Report',summary:[['Total',pdfMoney(total)],['Paid',pdfMoney(paid)],['Pending',pdfMoney(pending)],['Overdue',pdfMoney(overdue)]],headers:PDF_EXPENSE_HEADERS,widths:PDF_EXPENSE_WIDTHS,rows,rowValues:expensePdfValues,emptyText:'No expenses found.',filename:'VIJU-MONEY-MANAGER-Expenses.pdf'});
 }
 
-function personPDF(){
-  const person=document.getElementById("personReportPerson").value;
-  if(!person){alert("Select a person first.");return;}
-
-  const type=document.getElementById("personReportType").value;
-  let rows=getExpenses().filter(e=>e.person===person);
-
-  if(type==="daily"){
-    const d=document.getElementById("personReportDate").value;
-    rows=rows.filter(e=>e.date===d);
-  }
-
-  if(type==="monthly"){
-    const prefix=String(document.getElementById("personReportYear").value)+"-"+String(document.getElementById("personReportMonth").value).padStart(2,"0");
-    rows=rows.filter(e=>e.date.startsWith(prefix));
-  }
-
-  if(type==="yearly"){
-    rows=rows.filter(e=>e.date.startsWith(String(document.getElementById("personReportYear").value)));
-  }
-
-  saveArrayPDF(
-    "Person Report - "+person,
-    rows,
-    "EVR-Person-"+person.replace(/[^a-z0-9_-]+/gi,"-")+".pdf"
-  );
+function saveUpcomingPDF(){
+  const upcoming=getExpenses().filter(e=>statusOf(e)==='Pending').sort((a,b)=>(a.dueDate||'').localeCompare(b.dueDate||''));
+  const overdue=getExpenses().filter(e=>statusOf(e)==='Overdue').sort((a,b)=>(a.dueDate||'').localeCompare(b.dueDate||''));
+  const all=[...upcoming,...overdue];
+  saveTablePDF({title:'VIJU MONEY MANAGER',subtitle:'Upcoming & Overdue Expenses',summary:[['Upcoming Total',pdfMoney(upcoming.reduce((s,e)=>s+Number(e.amount||0),0))],['Upcoming Count',String(upcoming.length)],['Overdue Total',pdfMoney(overdue.reduce((s,e)=>s+Number(e.amount||0),0))],['Overdue Count',String(overdue.length)]],headers:PDF_EXPENSE_HEADERS,widths:PDF_EXPENSE_WIDTHS,rows:all,rowValues:expensePdfValues,emptyText:'No upcoming or overdue expenses.',filename:'VIJU-MONEY-MANAGER-Upcoming-Overdue.pdf'});
 }
 
-function categoryPDF(){
-  const category=document.getElementById("categoryReportCategory").value;
-  if(!category){alert("Select a category first.");return;}
-
-  const type=document.getElementById("categoryReportType").value;
-  let rows=getExpenses().filter(e=>e.category===category);
-
-  if(type==="daily"){
-    const d=document.getElementById("categoryReportDate").value;
-    rows=rows.filter(e=>e.date===d);
-  }
-
-  if(type==="monthly"){
-    const prefix=String(document.getElementById("categoryReportYear").value)+"-"+String(document.getElementById("categoryReportMonth").value).padStart(2,"0");
-    rows=rows.filter(e=>e.date.startsWith(prefix));
-  }
-
-  if(type==="yearly"){
-    rows=rows.filter(e=>e.date.startsWith(String(document.getElementById("categoryReportYear").value)));
-  }
-
-  saveArrayPDF(
-    "Category Report - "+category,
-    rows,
-    "EVR-Category-"+category.replace(/[^a-z0-9_-]+/gi,"-")+".pdf"
-  );
+function saveOverduePDF(){
+  const rows=getExpenses().filter(e=>statusOf(e)==='Overdue');
+  saveTablePDF({title:'VIJU MONEY MANAGER',subtitle:'Overdue Expenses',summary:[['Overdue Total',pdfMoney(rows.reduce((s,e)=>s+Number(e.amount||0),0))],['Overdue Count',String(rows.length)]],headers:PDF_EXPENSE_HEADERS,widths:PDF_EXPENSE_WIDTHS,rows,rowValues:expensePdfValues,emptyText:'No overdue expenses.',filename:'VIJU-MONEY-MANAGER-Overdue.pdf'});
 }
 
-function upcomingReportData(){
-  const today=new Date().toISOString().slice(0,10);
-  return getExpenses()
-    .filter(e=>statusOf(e)==='Pending' && e.dueDate && e.dueDate>=today)
-    .sort((a,b)=>(a.dueDate||'').localeCompare(b.dueDate||''));
+function savePeoplePDF(){
+  const rows=db.people.map((p,i)=>[String(i+1),p,getExpenses().filter(e=>e.person===p).length,pdfMoney(getExpenses().filter(e=>e.person===p).reduce((s,e)=>s+Number(e.amount||0),0))]);
+  saveTablePDF({title:'VIJU MONEY MANAGER',subtitle:'People Report',headers:['#','Person','Expenses','Total Amount'],widths:[45,235,100,120],rows,rowValues:r=>r,emptyText:'No people found.',filename:'VIJU-MONEY-MANAGER-People.pdf'});
 }
+
+function saveCategoriesPDF(){
+  const rows=db.categories.map((c,i)=>[String(i+1),c,getExpenses().filter(e=>e.category===c).length,pdfMoney(getExpenses().filter(e=>e.category===c).reduce((s,e)=>s+Number(e.amount||0),0))]);
+  saveTablePDF({title:'VIJU MONEY MANAGER',subtitle:'Categories Report',headers:['#','Category','Expenses','Total Amount'],widths:[45,235,100,120],rows,rowValues:r=>r,emptyText:'No categories found.',filename:'VIJU-MONEY-MANAGER-Categories.pdf'});
+}
+
+function reportRowsForPerson(){
+  const person=document.getElementById('personReportPerson')?.value;if(!person)return [];
+  const type=document.getElementById('personReportType')?.value||'all';let rows=getExpenses().filter(e=>e.person===person);
+  if(type==='daily')rows=rows.filter(e=>e.date===document.getElementById('personReportDate')?.value);
+  if(type==='monthly'){const prefix=String(document.getElementById('personReportYear')?.value)+'-'+String(document.getElementById('personReportMonth')?.value).padStart(2,'0');rows=rows.filter(e=>e.date.startsWith(prefix));}
+  if(type==='yearly')rows=rows.filter(e=>e.date.startsWith(String(document.getElementById('personReportYear')?.value)));
+  return rows;
+}
+function reportRowsForCategory(){
+  const category=document.getElementById('categoryReportCategory')?.value;if(!category)return [];
+  const type=document.getElementById('categoryReportType')?.value||'all';let rows=getExpenses().filter(e=>e.category===category);
+  if(type==='daily')rows=rows.filter(e=>e.date===document.getElementById('categoryReportDate')?.value);
+  if(type==='monthly'){const prefix=String(document.getElementById('categoryReportYear')?.value)+'-'+String(document.getElementById('categoryReportMonth')?.value).padStart(2,'0');rows=rows.filter(e=>e.date.startsWith(prefix));}
+  if(type==='yearly')rows=rows.filter(e=>e.date.startsWith(String(document.getElementById('categoryReportYear')?.value)));
+  return rows;
+}
+function periodPDF(){const rows=reportData();saveTablePDF({title:'VIJU MONEY MANAGER',subtitle:reportTitle(),headers:PDF_EXPENSE_HEADERS,widths:PDF_EXPENSE_WIDTHS,summary:[['Total',pdfMoney(rows.reduce((s,e)=>s+Number(e.amount||0),0))],['Expenses',String(rows.length)],['Average',pdfMoney(rows.length?rows.reduce((s,e)=>s+Number(e.amount||0),0)/rows.length:0)]],rows,rowValues:expensePdfValues,filename:'VIJU-MONEY-MANAGER-'+document.getElementById('reportType').value+'-report.pdf'});}
+function personPDF(){const person=document.getElementById('personReportPerson')?.value;if(!person)return alert('Select a person first.');const rows=reportRowsForPerson();saveTablePDF({title:'VIJU MONEY MANAGER',subtitle:'Person Report - '+person,headers:PDF_EXPENSE_HEADERS,widths:PDF_EXPENSE_WIDTHS,summary:[['Total',pdfMoney(rows.reduce((s,e)=>s+Number(e.amount||0),0))],['Expenses',String(rows.length)]],rows,rowValues:expensePdfValues,emptyText:'No expenses found for this person.',filename:'VIJU-MONEY-MANAGER-Person-'+person.replace(/[^a-z0-9_-]+/gi,'-')+'.pdf'});}
+function categoryPDF(){const category=document.getElementById('categoryReportCategory')?.value;if(!category)return alert('Select a category first.');const rows=reportRowsForCategory();saveTablePDF({title:'VIJU MONEY MANAGER',subtitle:'Category Report - '+category,headers:PDF_EXPENSE_HEADERS,widths:PDF_EXPENSE_WIDTHS,summary:[['Total',pdfMoney(rows.reduce((s,e)=>s+Number(e.amount||0),0))],['Expenses',String(rows.length)]],rows,rowValues:expensePdfValues,emptyText:'No expenses found for this category.',filename:'VIJU-MONEY-MANAGER-Category-'+category.replace(/[^a-z0-9_-]+/gi,'-')+'.pdf'});}
+function upcomingReportData(){return getExpenses().filter(e=>statusOf(e)==='Pending'&&e.dueDate&&e.dueDate>=today()).sort((a,b)=>(a.dueDate||'').localeCompare(b.dueDate||''));}
+function upcomingPDF(){const rows=upcomingReportData();saveTablePDF({title:'VIJU MONEY MANAGER',subtitle:'Upcoming Expenses Report',headers:PDF_EXPENSE_HEADERS,widths:PDF_EXPENSE_WIDTHS,summary:[['Total Due',pdfMoney(rows.reduce((s,e)=>s+Number(e.amount||0),0))],['Expenses',String(rows.length)],['Next Due',rows[0]?fmtDate(rows[0].dueDate):'-']],rows,rowValues:expensePdfValues,emptyText:'No upcoming expenses.',filename:'VIJU-MONEY-MANAGER-Upcoming-Expenses.pdf'});}
+function allExpensesPDF(){const rows=getExpenses();saveTablePDF({title:'VIJU MONEY MANAGER',subtitle:'All Expenses Report',headers:PDF_EXPENSE_HEADERS,widths:PDF_EXPENSE_WIDTHS,summary:[['Total',pdfMoney(rows.reduce((s,e)=>s+Number(e.amount||0),0))],['Expenses',String(rows.length)]],rows,rowValues:expensePdfValues,emptyText:'No expenses found.',filename:'VIJU-MONEY-MANAGER-All-Expenses.pdf'});}
 
 function renderUpcomingReport(){
   const rows=upcomingReportData();
@@ -874,20 +951,6 @@ function renderUpcomingReport(){
     </div>
     ${reportTable(rows)}
   ` : '<div class="empty">No upcoming expenses.</div>';
-}
-
-function upcomingPDF(){
-  const rows=upcomingReportData();
-  if(!rows.length){alert('There are no upcoming expenses to save.');return;}
-  saveArrayPDF(
-    'Upcoming Expenses Report',
-    rows,
-    'EVR-Upcoming-Expenses.pdf'
-  );
-}
-
-function allExpensesPDF(){
-  saveArrayPDF("All Viju Money Manager",getExpenses(),"EVR-All-Expenses.pdf");
 }
 
 
@@ -908,7 +971,7 @@ function downloadBlobFile(blob,filename){
 function exportJSON(){
   try{
     const backup={
-      app:"EVR Personal Expense Manager",
+      app:"VIJU MONEY MANAGER",
       version:4,
       exportedAt:new Date().toISOString(),
       data:{
@@ -927,7 +990,7 @@ function exportJSON(){
 
     downloadBlobFile(
       blob,
-      "EVR-Full-Backup-"+today()+".json"
+      "VIJU-MONEY-MANAGER-Full-Backup-"+today()+".json"
     );
 
     toast("Full backup JSON downloaded.");
@@ -938,7 +1001,7 @@ function exportJSON(){
   }
 }
 
-function importJSON(){const input=document.getElementById('importFile');if(!input?.files?.[0])return alert('Please choose a JSON backup file first.');const reader=new FileReader();reader.onload=function(){try{let raw=JSON.parse(String(reader.result).replace(/^\uFEFF/,''));let source=raw;for(const k of ['data','backup','database','db','payload','state'])if(source&&source[k]&&typeof source[k]==='object'&&(source[k].expenses||source[k].people||source[k].banks||source[k].accounts)){source=source[k];break}const expenses=Array.isArray(source.expenses)?source.expenses:(Array.isArray(source.items)?source.items:[]);if(!expenses.length&&!Array.isArray(source.banks)&&!Array.isArray(source.accounts))throw new Error('Invalid backup');db={expenses,people:Array.isArray(source.people)?source.people:['Me'],categories:Array.isArray(source.categories)?source.categories:[...DEFAULT_CATS],banks:Array.isArray(source.banks)?source.banks:(Array.isArray(source.accounts)?source.accounts:[{id:'cash',name:'Cash',balance:0,openingBalance:0}]),bankTransactions:Array.isArray(source.bankTransactions)?source.bankTransactions:(Array.isArray(source.transactions)?source.transactions:[]),version:4};ensureBanks();localStorage.setItem(KEY,JSON.stringify(db));renderAll();input.value='';alert('Full backup imported successfully.');}catch(e){console.error(e);alert('Invalid or unsupported EVR backup JSON file.');}};reader.readAsText(input.files[0])}
+function importJSON(){const input=document.getElementById('importFile');if(!input?.files?.[0])return alert('Please choose a JSON backup file first.');const reader=new FileReader();reader.onload=function(){try{let raw=JSON.parse(String(reader.result).replace(/^\uFEFF/,''));let source=raw;for(const k of ['data','backup','database','db','payload','state'])if(source&&source[k]&&typeof source[k]==='object'&&(source[k].expenses||source[k].people||source[k].banks||source[k].accounts)){source=source[k];break}const expenses=Array.isArray(source.expenses)?source.expenses:(Array.isArray(source.items)?source.items:[]);if(!expenses.length&&!Array.isArray(source.banks)&&!Array.isArray(source.accounts))throw new Error('Invalid backup');db={expenses,people:Array.isArray(source.people)?source.people:['Me'],categories:Array.isArray(source.categories)?source.categories:[...DEFAULT_CATS],banks:Array.isArray(source.banks)?source.banks:(Array.isArray(source.accounts)?source.accounts:[{id:'cash',name:'Cash',balance:0,openingBalance:0}]),bankTransactions:Array.isArray(source.bankTransactions)?source.bankTransactions:(Array.isArray(source.transactions)?source.transactions:[]),version:4};ensureBanks();localStorage.setItem(KEY,JSON.stringify(db));renderAll();input.value='';alert('Full backup imported successfully.');}catch(e){console.error(e);alert('Invalid or unsupported VIJU MONEY MANAGER backup JSON file.');}};reader.readAsText(input.files[0])}
 function clearAll(){
   if(!confirm(
     "This will permanently delete all local expenses, people and categories. Continue?"
@@ -961,7 +1024,7 @@ function clearAll(){
 function downloadAllCSV(){
   downloadCSV(
     getExpenses(),
-    "EVR-All-Expenses.csv"
+    "VIJU-MONEY-MANAGER-All-Expenses.csv"
   );
 }
 
@@ -1115,137 +1178,6 @@ function initDashboardPeriod(){
   updateDashboardPeriod();
 }
 
-function pdfFromHTML(title, html, filename){
-  const tmp=document.createElement('div');tmp.innerHTML=html;
-  const rows=[...tmp.querySelectorAll('tbody tr')].map(tr=>{const c=[...tr.querySelectorAll('td')].map(x=>x.innerText);return {date:c[0]||'',name:c[1]||title,amount:parseFloat((c[2]||'').replace(/[^0-9.-]/g,''))||0,category:c[3]||'',person:c[4]||'',payment:c[5]||'',dueDate:c[6]||'',status:c[7]||''}});
-  saveArrayPDF(title,rows,filename);
-}
-
-function saveDashboardPDF(){
-  const month=document.getElementById('dashboardMonth')?.selectedOptions[0]?.text||'';
-  const year=document.getElementById('dashboardYear')?.value||'';
-  const html='<p><b>Period:</b> '+month+' '+year+'</p>'+
-    '<div class="summary">'+
-    '<div class="box"><b>Total</b><br>'+
-    (document.getElementById('dashboardTotal')?.textContent||money(0))+'</div>'+
-    '<div class="box"><b>Paid</b><br>'+
-    (document.getElementById('dashboardPaid')?.textContent||money(0))+'</div>'+
-    '<div class="box"><b>Pending</b><br>'+
-    (document.getElementById('dashboardPending')?.textContent||money(0))+'</div>'+
-    '<div class="box"><b>Overdue</b><br>'+
-    (document.getElementById('dashboardOverdue')?.textContent||money(0))+'</div>'+
-    '<div class="box"><b>Upcoming</b><br>'+
-    (document.getElementById('dashboardUpcoming')?.textContent||money(0))+'</div>'+
-    '</div>';
-  pdfFromHTML('EVR Dashboard - '+month+' '+year,html,'EVR-Dashboard.pdf');
-}
-
-function saveExpensesPDF(){
-  const rows=[...document.querySelectorAll('#expenseTable tr')].map(r=>'<tr>'+r.innerHTML+'</tr>').join('');
-  const html='<div class="summary"><div class="box"><b>Expenses</b><br>'+
-    (document.querySelector('#expensesSummary')?.innerText||'')+
-    '</div></div><table><thead><tr><th>Date</th><th>Expense</th><th>Amount</th><th>Category</th><th>Person</th><th>Payment</th><th>Due</th><th>Status</th></tr></thead><tbody>'+
-    rows+'</tbody></table>';
-  pdfFromHTML('Viju Money Manager',html,'EVR-Expenses.pdf');
-}
-
-function saveUpcomingPDF(){
-  // Dedicated A4 report for Upcoming + Overdue expenses.
-  // This does NOT use the normal text-only PDF generator, so the report
-  // keeps proper boxes, table borders, column lines, and page numbers.
-  const all=getExpenses();
-  const upcoming=all.filter(e=>statusOf(e)==='Pending');
-  const overdue=all.filter(e=>statusOf(e)==='Overdue');
-  const moneyPlain=n=>'INR '+Number(n||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
-  const escPdf=s=>pdfEscapeText(String(s??''));
-  const wrap=(s,max)=>{
-    const words=String(s??'').split(/\s+/),out=[];let cur='';
-    words.forEach(w=>{const test=cur?cur+' '+w:w;if(test.length>max&&cur){out.push(cur);cur=w}else cur=test});
-    if(cur)out.push(cur);return out.length?out:[''];
-  };
-
-  const pages=[];
-  let page={ops:[],y:H-TOP};
-  const newPage=()=>{pages.push(page);page={ops:[],y:H-TOP};};
-  const line=(x1,y1,x2,y2,w=0.7)=>page.ops.push({k:'line',x1,y1,x2,y2,w});
-  const rect=(x,y,w,h)=>page.ops.push({k:'rect',x,y,w,h});
-  const fillRect=(x,y,w,h)=>page.ops.push({k:'fillRect',x,y,w,h});
-  const txt=(x,y,s,size=9,bold=false)=>page.ops.push({k:'text',x,y,s,size,bold});
-  const cellText=(x,y,w,s,size=8,bold=false)=>{
-    const max=Math.max(5,Math.floor(w/(size*0.53)));
-    const ls=wrap(s,max).slice(0,2);
-    ls.forEach((v,i)=>txt(x,y-i*(size+2),v,size,bold));
-    return ls.length;
-  };
-  const totalW=W-ML-MR;
-  const widths=[64,142,72,78,92,78];
-  const headers=['Date','Expense','Amount','Category','Person','Payment'];
-
-  function drawTitle(){
-    txt(ML,page.y,'VIJU MONEY MANAGER',18,true);page.y-=23;
-    txt(ML,page.y,'Upcoming & Overdue Expenses',12,true);page.y-=16;
-    txt(ML,page.y,'Generated: '+new Date().toLocaleString(),8,false);page.y-=18;
-  }
-  function drawSummary(){
-    const gap=8,bw=(totalW-gap*2)/3,bh=48;
-    const vals=[
-      ['Total Upcoming Expenses',moneyPlain(upcoming.reduce((s,e)=>s+Number(e.amount||0),0))],
-      ['Upcoming Count',String(upcoming.length)],
-      ['Total Overdue',moneyPlain(overdue.reduce((s,e)=>s+Number(e.amount||0),0))]
-    ];
-    vals.forEach((v,i)=>{const x=ML+i*(bw+gap);rect(x,page.y-bh,bw,bh);txt(x+9,page.y-15,v[0],8,false);txt(x+9,page.y-35,v[1],11,true)});
-    page.y-=bh+18;
-  }
-  function drawSection(title,rows){
-    if(page.y<100){newPage();drawTitle();}
-    txt(ML,page.y,title,12,true);page.y-=17;
-    const x0=ML,tw=widths.reduce((a,b)=>a+b,0),hh=25;
-    fillRect(x0,page.y-hh,tw,hh);
-    rect(x0,page.y-hh,tw,hh);
-    let x=x0;
-    headers.forEach((h,i)=>{txt(x+5,page.y-16,h,7.5,true);if(i>0)line(x,page.y,x,page.y-hh,0.7);x+=widths[i]});
-    line(x0,page.y,x0+tw,page.y,0.9);line(x0,page.y-hh,x0+tw,page.y-hh,0.9);page.y-=hh;
-    if(!rows.length){
-      const rh=28;rect(x0,page.y-rh,tw,rh);txt(x0+8,page.y-17,'No '+title.toLowerCase()+'.',8,false);line(x0,page.y-rh,x0+tw,page.y-rh,0.6);page.y-=rh;return;
-    }
-    rows.forEach(r=>{
-      const vals=[fmtDate(r.dueDate||r.date||''),r.name||'',moneyPlain(r.amount),r.category||'',r.person||'',r.payment||''];
-      let maxLines=1;vals.forEach((v,i)=>{maxLines=Math.max(maxLines,wrap(v,Math.max(5,Math.floor(widths[i]/(7.4*0.53)))).length)});
-      const rh=Math.max(30,12+maxLines*9);
-      if(page.y-rh<42){newPage();drawTitle();txt(ML,page.y,title+' (continued)',12,true);page.y-=17;fillRect(x0,page.y-hh,tw,hh);rect(x0,page.y-hh,tw,hh);let xx=x0;headers.forEach((h,i)=>{txt(xx+5,page.y-16,h,7.5,true);if(i>0)line(xx,page.y,xx,page.y-hh,.7);xx+=widths[i]});line(x0,page.y,x0+tw,page.y,.9);line(x0,page.y-hh,x0+tw,page.y-hh,.9);page.y-=hh;}
-      const top=page.y,bottom=top-rh;rect(x0,bottom,tw,rh);let xx=x0;
-      vals.forEach((v,i)=>{cellText(xx+5,top-13,widths[i]-10,v,7.4,false);if(i>0)line(xx,top,xx,bottom,.6);xx+=widths[i]});
-      line(x0,bottom,x0+tw,bottom,.6);page.y=bottom;
-    });
-    page.y-=18;
-  }
-
-  drawTitle();drawSummary();drawSection('Upcoming Expenses',upcoming);drawSection('Overdue Expenses',overdue);
-  pages.push(page);
-  pages.forEach((p,i)=>p.ops.push({k:'text',x:W-MR-42,y:20,s:(i+1)+' / '+pages.length,size:7,bold:false}));
-
-  const objects=[];const catalog=1,pagesObj=2,font=3,fontBold=4;
-  objects[font-1]='<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>';
-  objects[fontBold-1]='<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>';
-  const pageIds=[];const addObject=obj=>{objects.push(obj);return objects.length};
-  pages.forEach(p=>{
-    let stream='';
-    p.ops.forEach(o=>{
-      if(o.k==='text')stream+=`BT\n/F${o.bold?2:1} ${o.size} Tf\n1 0 0 1 ${o.x.toFixed(2)} ${o.y.toFixed(2)} Tm (${escPdf(o.s)}) Tj\nET\n`;
-      else if(o.k==='line')stream+=`${o.w} w\n${o.x1.toFixed(2)} ${o.y1.toFixed(2)} m\n${o.x2.toFixed(2)} ${o.y2.toFixed(2)} l\nS\n`;
-      else if(o.k==='rect')stream+=`0.8 w\n${o.x.toFixed(2)} ${o.y.toFixed(2)} ${o.w.toFixed(2)} ${o.h.toFixed(2)} re\nS\n`;
-      else if(o.k==='fillRect')stream+=`0.86 g\n${o.x.toFixed(2)} ${o.y.toFixed(2)} ${o.w.toFixed(2)} ${o.h.toFixed(2)} re\nf\n0 g\n`;
-    });
-    const contentId=addObject(`<< /Length ${stream.length} >>\nstream\n${stream}endstream`);
-    const pageId=addObject(`<< /Type /Page /Parent ${pagesObj} 0 R /MediaBox [0 0 ${W} ${H}] /Resources << /Font << /F1 ${font} 0 R /F2 ${fontBold} 0 R >> >> /Contents ${contentId} 0 R >>`);pageIds.push(pageId);
-  });
-  objects[catalog-1]=`<< /Type /Catalog /Pages ${pagesObj} 0 R >>`;
-  objects[pagesObj-1]=`<< /Type /Pages /Kids [${pageIds.map(x=>x+' 0 R').join(' ')}] /Count ${pageIds.length} >>`;
-  const pdf=buildPdf(objects,catalog);
-  const blob=new Blob([pdf],{type:'application/pdf'});const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='VIJU-MONEY-MANAGER-Upcoming-Overdue.pdf';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);
-}
-
-
 function ensureBanks(){if(!Array.isArray(db.banks))db.banks=[{id:'cash',name:'Cash',balance:0,openingBalance:0}];if(!db.banks.some(x=>x.id==='cash'))db.banks.unshift({id:'cash',name:'Cash',balance:0,openingBalance:0});if(!Array.isArray(db.bankTransactions))db.bankTransactions=[]}
 function fillAccountSelect(id){ensureBanks();const s=document.getElementById(id);if(!s)return;const old=s.value;s.innerHTML='<option value="">No Bank / Cash</option>'+db.banks.map(b=>`<option value="${esc(b.id)}">${esc(b.name)}</option>`).join('');if([...s.options].some(o=>o.value===old))s.value=old}
 function toggleExpenseAccount(){const s=document.getElementById('eStatus'),a=document.getElementById('eAccount');if(!s||!a)return;a.disabled=s.value!=='Paid';if(s.value!=='Paid')a.value=''}
@@ -1257,188 +1189,22 @@ function deleteBank(id){if(id==='cash')return alert('Cash cannot be deleted.');i
 function saveBankTransaction(){ensureBanks();const type=document.getElementById('txType').value,from=document.getElementById('txFrom').value,to=document.getElementById('txTo').value,amount=Number(document.getElementById('txAmount').value||0),note=document.getElementById('txNote').value.trim();if(amount<=0)return alert('Enter a valid amount.');if(type==='transfer'){if(!from||!to||from===to)return alert('Choose different From and To accounts.');if(accountBalance(from)<amount)return alert('Insufficient available balance.');db.banks.find(b=>b.id===from).balance-=amount;db.banks.find(b=>b.id===to).balance+=amount}else if(type==='deposit'){if(!to)return alert('Choose the bank receiving the cash deposit.');db.banks.find(b=>b.id===to).balance+=amount}else if(type==='atm'){if(!from)return alert('Choose the bank.');if(accountBalance(from)<amount)return alert('Insufficient available balance.');db.banks.find(b=>b.id===from).balance-=amount;/* ATM withdrawal intentionally does not add to Cash */}else if(type==='adjust'){if(!to)return alert('Choose an account.');db.banks.find(b=>b.id===to).balance+=amount}const f=db.banks.find(b=>b.id===from),t=db.banks.find(b=>b.id===to);db.bankTransactions.push({id:'tx_'+Date.now(),date:today(),type,from,to,fromName:f?.name||'',toName:t?.name||'',amount,note});saveDB();renderBanks();toast('Transaction saved')}
 function saveBankTransactionsPDF(){
   ensureBanks();
-
-  const W=595,H=842,ML=36,MR=36,TOP=38,BOTTOM=42;
-  const rows=[];
-  db.banks.forEach(b=>{
-    rows.push({
-      date:today(),
-      name:b.name||'Unnamed Account',
-      amount:Number(b.balance||0),
-      category:'Available Balance',
-      person:'-',
-      payment:'-',
-      status:'Current Balance'
-    });
+  const balanceRows=db.banks.map(b=>[today(),b.name,pdfMoney(b.balance),'Available Balance','-', 'Current Balance']);
+  const txRows=db.bankTransactions.slice().reverse().map(t=>{
+    const typeMap={transfer:'Bank Transfer',deposit:'Cash Deposit',cashbank:'Cash -> Bank',atm:'ATM Withdrawal',adjust:'Balance Adjustment'};
+    return [fmtDate(t.date||today()),typeMap[t.type]||String(t.type||'Bank Transaction'),pdfMoney(t.amount),'Bank Transaction',(t.fromName||'-')+' -> '+(t.toName||'-'),'Completed'];
   });
-  db.bankTransactions.slice().reverse().forEach(t=>{
-    const typeMap={transfer:'Bank Transfer',deposit:'Cash Deposit',cashbank:'Cash → Bank',atm:'ATM Withdrawal',adjust:'Balance Adjustment'};
-    rows.push({
-      date:t.date||today(),
-      name:typeMap[t.type]||String(t.type||'Bank Transaction'),
-      amount:Number(t.amount||0),
-      category:'Bank Transaction',
-      person:'-',
-      payment:(t.fromName||'-')+' → '+(t.toName||'-'),
-      status:'Completed'
-    });
+  saveTablePDF({
+    title:'VIJU MONEY MANAGER',
+    subtitle:'Cash & Banks - Transactions & Available Balances',
+    summary:[['Total Available Balance',pdfMoney(db.banks.reduce((s,b)=>s+Number(b.balance||0),0))],['Accounts',String(db.banks.length)],['Transactions',String(db.bankTransactions.length)]],
+    headers:['Date','Account / Transaction','Amount','Category','From / To','Status'],
+    widths:[60,138,72,82,108,63],
+    rows:balanceRows.concat(txRows),
+    rowValues:r=>r,
+    emptyText:'No bank transactions or account balances found.',
+    filename:'VIJU-MONEY-MANAGER-Cash-Banks.pdf'
   });
-
-  const escPdf=s=>pdfEscapeText(String(s??''));
-  const moneyPlain=n=>'INR '+Number(n||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
-  const wrap=(s,max)=>{
-    const words=String(s??'').split(/\s+/), out=[]; let cur='';
-    words.forEach(w=>{
-      const test=cur?cur+' '+w:w;
-      if(test.length>max && cur){out.push(cur);cur=w}else cur=test;
-    });
-    if(cur)out.push(cur);
-    return out.length?out:[''];
-  };
-
-  // A4 styled PDF: title, summary boxes, and a clearly lined table.
-  const title='VIJU MONEY MANAGER';
-  const subtitle='Cash & Banks — Transactions & Available Balances';
-  const totalBalance=db.banks.reduce((s,b)=>s+Number(b.balance||0),0);
-  const bankCount=db.banks.length;
-  const txCount=db.bankTransactions.length;
-
-  const pages=[];
-  let page={ops:[], y:H-TOP};
-  const newPage=()=>{pages.push(page);page={ops:[],y:H-TOP};};
-  const line=(x1,y1,x2,y2,w=0.7)=>page.ops.push({k:'line',x1,y1,x2,y2,w});
-  const rect=(x,y,w,h,fill=false)=>page.ops.push({k:'rect',x,y,w,h,fill});
-  const txt=(x,y,s,size=9,bold=false)=>page.ops.push({k:'text',x,y,s,size,bold});
-  const cellText=(x,y,w,s,size=8)=>{
-    const max=Math.max(8,Math.floor(w/(size*0.53)));
-    const lines=wrap(s,max).slice(0,2);
-    lines.forEach((v,i)=>txt(x,y-i*(size+2),v,size,false));
-    return lines.length;
-  };
-
-  const drawHeader=()=>{
-    txt(ML,page.y,title,18,true); page.y-=23;
-    txt(ML,page.y,subtitle,11,false); page.y-=16;
-    txt(ML,page.y,'Generated: '+new Date().toLocaleString(),8,false); page.y-=17;
-
-    const gap=8, bw=(W-ML-MR-gap*2)/3, bh=47;
-    const vals=[
-      ['Total Available Balance',moneyPlain(totalBalance)],
-      ['Accounts',String(bankCount)],
-      ['Bank Transactions',String(txCount)]
-    ];
-    vals.forEach((v,i)=>{
-      const x=ML+i*(bw+gap);
-      rect(x,page.y-bh,bw,bh,false);
-      txt(x+9,page.y-15,v[0],8,false);
-      txt(x+9,page.y-34,v[1],11,true);
-    });
-    page.y-=bh+16;
-  };
-
-  const headers=['Date','Account / Transaction','Amount','Category','From / To','Status'];
-  const widths=[60,138,72,82,108,63];
-  const drawTableHeader=()=>{
-    const h=25,x0=ML;
-    rect(x0,page.y-h,widths.reduce((a,b)=>a+b,0),h,false);
-    let x=x0;
-    headers.forEach((htext,i)=>{
-      txt(x+5,page.y-16,htext,7.5,true);
-      if(i>0)line(x,page.y,x,page.y-h,0.7);
-      x+=widths[i];
-    });
-    line(x0,page.y,x0+widths.reduce((a,b)=>a+b,0),page.y,0.9);
-    line(x0,page.y-h,x0+widths.reduce((a,b)=>a+b,0),page.y-h,0.9);
-    page.y-=h;
-  };
-
-  drawHeader();
-  drawTableHeader();
-
-  const rowHeightFor=r=>{
-    const vals=[
-      r.date||'',
-      r.name||'',
-      moneyPlain(r.amount),
-      r.category||'',
-      r.payment||'-',
-      r.status||''
-    ];
-    let maxLines=1;
-    vals.forEach((v,i)=>{
-      const max=Math.max(8,Math.floor(widths[i]/(7.6*0.53)));
-      maxLines=Math.max(maxLines,wrap(v,max).length);
-    });
-    return Math.max(30,12+maxLines*9);
-  };
-
-  rows.forEach((r,idx)=>{
-    const rh=rowHeightFor(r);
-    if(page.y-rh < BOTTOM+18){
-      newPage();
-      drawTableHeader();
-    }
-    const x0=ML,totalW=widths.reduce((a,b)=>a+b,0),top=page.y,bottom=top-rh;
-    rect(x0,bottom,totalW,rh,false);
-    let x=x0;
-    const vals=[
-      r.date||'',
-      r.name||'',
-      moneyPlain(r.amount),
-      r.category||'',
-      r.payment||'-',
-      r.status||''
-    ];
-    vals.forEach((v,i)=>{
-      cellText(x+5,top-13,widths[i]-10,v,7.6);
-      if(i>0)line(x,top,x,bottom,0.6);
-      x+=widths[i];
-    });
-    line(x0,bottom,x0+totalW,bottom,0.6);
-    page.y=bottom;
-  });
-
-  if(!rows.length){
-    txt(ML,page.y-16,'No bank transactions or account balances found.',9,false);
-  }
-
-  // Footer on every page.
-  pages.forEach((p,i)=>{
-    p.ops.push({k:'text',x:W-MR-42,y:20,s:(i+1)+' / '+pages.length,size:7,bold:false});
-  });
-
-  const objects=[];
-  const catalog=1,pagesObj=2,font=3,fontBold=4;
-  objects[font-1]='<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>';
-  objects[fontBold-1]='<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>';
-  const pageIds=[];
-  const addObject=obj=>{objects.push(obj);return objects.length;};
-
-  pages.forEach(p=>{
-    let stream='';
-    p.ops.forEach(o=>{
-      if(o.k==='text'){
-        stream+=`BT\n/F${o.bold?2:1} ${o.size} Tf\n1 0 0 1 ${o.x.toFixed(2)} ${o.y.toFixed(2)} Tm (${escPdf(o.s)}) Tj\nET\n`;
-      }else if(o.k==='line'){
-        stream+=`${o.w} w\n${o.x1.toFixed(2)} ${o.y1.toFixed(2)} m\n${o.x2.toFixed(2)} ${o.y2.toFixed(2)} l\nS\n`;
-      }else if(o.k==='rect'){
-        stream+=`${o.w} w\n${o.x.toFixed(2)} ${o.y.toFixed(2)} ${o.w.toFixed(2)} ${o.h.toFixed(2)} re\nS\n`;
-      }
-    });
-    const contentId=addObject(`<< /Length ${stream.length} >>\nstream\n${stream}endstream`);
-    const pageId=addObject(`<< /Type /Page /Parent ${pagesObj} 0 R /MediaBox [0 0 ${W} ${H}] /Resources << /Font << /F1 ${font} 0 R /F2 ${fontBold} 0 R >> >> /Contents ${contentId} 0 R >>`);
-    pageIds.push(pageId);
-  });
-
-  objects[catalog-1]=`<< /Type /Catalog /Pages ${pagesObj} 0 R >>`;
-  objects[pagesObj-1]=`<< /Type /Pages /Kids [${pageIds.map(x=>x+' 0 R').join(' ')}] /Count ${pageIds.length} >>`;
-
-  const pdf=buildPdf(objects,catalog);
-  const blob=new Blob([pdf],{type:'application/pdf'});
-  const url=URL.createObjectURL(blob),a=document.createElement('a');
-  a.href=url;a.download='VIJU-MONEY-MANAGER-Cash-Banks.pdf';
-  document.body.appendChild(a);a.click();a.remove();
-  setTimeout(()=>URL.revokeObjectURL(url),1500);
 }
 
 function renderAll(){ensureBanks();fillSelect('filterPerson',db.people,'All People');fillSelect('filterCategory',db.categories,'All Categories');renderDashboard();renderExpenses();renderUpcoming();renderPeople();renderCategories();renderReports();renderBanks();}
