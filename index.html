@@ -885,7 +885,7 @@ th,td{padding:7px 8px}
   </div>
 
   <div class="account-management-grid">
-    <button class="manage-action manage-add" type="button" onclick="document.getElementById('newBankName').focus()">
+    <button class="manage-action manage-add" type="button" onclick="startAddBank()">
       <span class="manage-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>
       <span class="manage-copy"><b>Add Account</b></span>
     </button>
@@ -2078,6 +2078,15 @@ document.addEventListener('click',function(ev){const m=document.getElementById('
 (function(){let sx=0,sy=0;const pages=['dashboard','expenses','upcoming','people','banks','reports'];document.addEventListener('touchstart',e=>{if(!e.touches[0])return;sx=e.touches[0].clientX;sy=e.touches[0].clientY},{passive:true});document.addEventListener('touchend',e=>{if(!e.changedTouches[0])return;const dx=e.changedTouches[0].clientX-sx,dy=e.changedTouches[0].clientY-sy;if(Math.abs(dx)<70||Math.abs(dx)<=Math.abs(dy))return;const active=document.querySelector('.page.active');if(!active)return;const i=pages.indexOf(active.id);const ni=dx<0?i+1:i-1;if(ni>=0&&ni<pages.length)page(pages[ni],document.querySelectorAll('.bottom-nav button')[ni])},{passive:true})})();
 
 function toggleMenu(){const m=document.getElementById('menuPanel');if(m)m.classList.toggle('show')}
+function startAddBank(){
+  bankEditId=null;
+  const nameEl=document.getElementById('newBankName');
+  const balEl=document.getElementById('newBankBalance');
+  const btn=document.getElementById('bankSaveButton');
+  if(nameEl){nameEl.value='';nameEl.readOnly=false;nameEl.focus();}
+  if(balEl){balEl.value='';balEl.readOnly=false;balEl.disabled=false;}
+  if(btn)btn.textContent='Add Bank';
+}
 function manageSelectedBankEdit(){const id=document.getElementById('accountManageSelect')?.value;if(id)editBank(id)}
 function manageSelectedBankDelete(){const id=document.getElementById('accountManageSelect')?.value;if(id)deleteBank(id)}
 
