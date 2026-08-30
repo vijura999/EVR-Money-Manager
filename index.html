@@ -727,7 +727,7 @@ th,td{padding:7px 8px}
     <div class="account-add-form">
       <div class="group"><label>Bank / Account Name</label><input id="newBankName" placeholder="HDFC Bank"></div>
       <div class="group"><label>Opening / Available Balance</label><input id="newBankBalance" type="number" step="0.01" placeholder="0"></div>
-      <button class="btn success" onclick="addBank()">Add Bank</button>
+      <button id="bankSaveButton" class="btn success" onclick="addBank()">Add Bank</button>
     </div>
     <div class="account-manage-select">
       <label for="accountManageSelect">Select account for Edit / Delete</label>
@@ -814,7 +814,7 @@ Reset Reminder
 <script>
 const KEY='evr_personal_expenses_v3';
 const DEFAULT_CATS=['Food','Travel','Rent','Utilities','Shopping','Medical','Education','Entertainment','Bills','Other'];
-let db=loadDB(), editId=null;
+let db=loadDB(), editId=null, bankEditId=null;
 
 function defaultDB(){return {expenses:[],people:['Me'],categories:DEFAULT_CATS,banks:[{id:'cash',name:'Cash',balance:0,openingBalance:0}],bankTransactions:[],version:4,updatedAt:new Date().toISOString()}}
 function loadDB(){try{const x=JSON.parse(localStorage.getItem(KEY));if(x&&Array.isArray(x.expenses)){x.banks=Array.isArray(x.banks)&&x.banks.length?x.banks:[{id:'cash',name:'Cash',balance:0,openingBalance:0}];x.bankTransactions=Array.isArray(x.bankTransactions)?x.bankTransactions:[];return x}return defaultDB()}catch(e){return defaultDB()}}
@@ -1730,11 +1730,82 @@ function ensureBanks(){if(!Array.isArray(db.banks))db.banks=[{id:'cash',name:'Ca
 function fillAccountSelect(id){ensureBanks();const s=document.getElementById(id);if(!s)return;const old=s.value;s.innerHTML='<option value="">No Bank / Cash</option>'+db.banks.map(b=>`<option value="${esc(b.id)}">${esc(b.name)}</option>`).join('');if([...s.options].some(o=>o.value===old))s.value=old}
 function toggleExpenseAccount(){const s=document.getElementById('eStatus'),a=document.getElementById('eAccount');if(!s||!a)return;a.disabled=s.value!=='Paid';if(s.value!=='Paid')a.value=''}
 function accountBalance(id){ensureBanks();const b=db.banks.find(x=>x.id===id);return b?Number(b.balance||0):0}
-function addBank(){ensureBanks();const n=document.getElementById('newBankName').value.trim(),bal=Number(document.getElementById('newBankBalance').value||0);if(!n)return alert('Enter bank name.');db.banks.push({id:'b_'+Date.now(),name:n,balance:bal,openingBalance:bal});saveDB();renderBanks();toast('Bank added')}
+function addBank(){
+  ensureBanks();
+  const nameEl=document.getElementById('newBankName'),balEl=document.getElementById('newBankBalance');
+  const n=(nameEl?.value||'').trim(),bal=Number(balEl?.value||0);
+  if(!n)return alert('Enter bank / account name.');
+  if(!Number.isFinite(bal)||bal<0)return alert('Enter a valid balance (0 or more).');
+  if(bankEditId){
+    const b=db.banks.find(x=>x.id===bankEditId);
+    if(!b){bankEditId=null;return alert('Selected account not found.');}
+    b.name=n;
+    b.balance=bal;
+    b.openingBalance=bal;
+    bankEditId=null;
+    if(nameEl)nameEl.value='';
+    if(balEl)balEl.value='';
+    const btn=document.getElementById('bankSaveButton');if(btn)btn.textContent='Add Bank';
+    saveDB();
+    toast('Account updated successfully');
+    return;
+  }
+  db.banks.push({id:'b_'+Date.now(),name:n,balance:bal,openingBalance:bal});
+  if(nameEl)nameEl.value='';
+  if(balEl)balEl.value='';
+  saveDB();
+  toast('Bank added');
+}
+
+function editBank(id){
+  ensureBanks();
+  if(!id)return;
+  const b=db.banks.find(x=>x.id===id);
+  if(!b)return alert('Selected account not found.');
+  bankEditId=id;
+  const nameEl=document.getElementById('newBankName'),balEl=document.getElementById('newBankBalance');
+  if(nameEl)nameEl.value=b.name||'';
+  if(balEl)balEl.value=Number(b.balance||0);
+  const btn=document.getElementById('bankSaveButton');if(btn)btn.textContent='Save Changes';
+  if(nameEl)nameEl.focus();
+  toast('Edit the account details, then tap Save Changes');
+}
+
+function cancelBankEdit(){
+  bankEditId=null;
+  const nameEl=document.getElementById('newBankName'),balEl=document.getElementById('newBankBalance');
+  if(nameEl)nameEl.value='';
+  if(balEl)balEl.value='';
+  const btn=document.getElementById('bankSaveButton');if(btn)btn.textContent='Add Bank';
+}
+
+function deleteBank(id){
+  ensureBanks();
+  if(!id)return;
+  if(id==='cash')return alert('Cash Account cannot be deleted.');
+  const b=db.banks.find(x=>x.id===id);
+  if(!b)return alert('Selected account not found.');
+  const usedByExpenses=db.expenses.filter(e=>e.accountId===id).length;
+  const usedByTransactions=db.bankTransactions.filter(t=>t.from===id||t.to===id).length;
+  let msg='Delete "'+b.name+'"?';
+  if(usedByExpenses||usedByTransactions){
+    msg+='\n\nThis account is linked to '+usedByExpenses+' expense(s) and '+usedByTransactions+' bank transaction(s). The historical records will stay, but the deleted account will no longer be selectable.';
+  }
+  if(!confirm(msg))return;
+  db.banks=db.banks.filter(x=>x.id!==id);
+  db.expenses.forEach(e=>{if(e.accountId===id)e.accountId='';});
+  db.bankTransactions.forEach(t=>{
+    if(t.from===id)t.from='';
+    if(t.to===id)t.to='';
+  });
+  if(bankEditId===id)cancelBankEdit();
+  saveDB();
+  toast('Account deleted successfully');
+}
 function renderBanks(){ensureBanks();const list=document.getElementById('bankList'),bal=document.getElementById('bankBalances');
 if(list)list.innerHTML=db.banks.map((b,i)=>`<div class="professional-bank-row"><span class="bank-row-icon ${b.id==='cash'?'cash-icon':'bank-icon'}" aria-hidden="true">${b.id==='cash'?'<svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M7 10h.01M17 15h.01M7 16h5"/><circle cx="16" cy="12.5" r="2.5"/></svg>':'<svg viewBox="0 0 24 24"><path d="M3 9h18L12 4 3 9Z"/><path d="M5 10v8M9 10v8M15 10v8M19 10v8M3 20h18"/></svg>'}</span><span class="bank-row-info"><b>${esc(b.name)}</b><small>${b.id==='cash'?'Cash Account':'Bank Account'} · Available balance</small></span><strong class="bank-row-balance">${money(b.balance)}</strong><span class="bank-row-arrow">›</span></div>`).join('');
 if(bal)bal.innerHTML=db.banks.map(b=>`<div class="currency-card"><b>${esc(b.name)}</b><div class="currency-value">${money(b.balance)}</div></div>`).join('');
-const manage=document.getElementById('accountManageSelect');if(manage)manage.innerHTML=db.banks.map(b=>`<option value="${esc(b.id)}">${esc(b.name)} — ${money(b.balance)}</option>`).join('');
+const manage=document.getElementById('accountManageSelect');if(manage){const selected=manage.value;manage.innerHTML=db.banks.map(b=>`<option value="${esc(b.id)}">${esc(b.name)} — ${money(b.balance)}</option>`).join('');if([...manage.options].some(o=>o.value===selected))manage.value=selected;}
 const cash=db.banks.find(b=>b.id==='cash');const bankTotal=db.banks.filter(b=>b.id!=='cash').reduce((s,b)=>s+Number(b.balance||0),0);const cashBal=Number(cash?.balance||0);const total=bankTotal+cashBal;
 const sb=document.getElementById('summaryBankBalance'),sc=document.getElementById('summaryCashBalance'),st=document.getElementById('summaryTotalBalance');if(sb)sb.textContent=money(bankTotal);if(sc)sc.textContent=money(cashBal);if(st)st.textContent=money(total);
 fillAccountSelect('eAccount');fillAccountSelect('txFrom');fillAccountSelect('txTo');const tb=document.getElementById('bankTxTable');if(tb)tb.innerHTML=db.bankTransactions.slice().reverse().map(t=>`<tr><td>${fmtDate(t.date)}</td><td>${esc(t.type)}</td><td>${esc(t.fromName||'-')}</td><td>${esc(t.toName||'-')}</td><td>${money(t.amount)}</td><td>${esc(t.note||'')}</td></tr>`).join('')||'<tr><td colspan="6" class="empty">No bank transactions.</td></tr>'
