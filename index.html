@@ -708,6 +708,50 @@ html,body,#application{overscroll-behavior-x:none!important;}
   #banks .transaction-heading{align-items:flex-start}
   #banks .transaction-heading h2{font-size:18px!important}
 }
+
+/* ===== EXPENSES MOBILE-FRIENDLY CARD LAYOUT ===== */
+.expenses-list-wrap{width:100%;overflow:visible}
+.expenses-card-list{display:flex;flex-direction:column;gap:12px;width:100%;overflow:visible}
+.expense-card-item{width:100%;background:#f9fafc;border:1px solid #e3e8f0;border-radius:14px;padding:14px 16px;box-shadow:0 2px 8px rgba(15,23,42,.05);overflow:hidden}
+.expense-card-main{min-width:0}
+.expense-card-title{font-size:18px;font-weight:800;color:#182640;line-height:1.25;margin-bottom:5px;overflow-wrap:anywhere}
+.expense-card-meta{font-size:13px;color:#334155;line-height:1.45;overflow-wrap:anywhere}
+.expense-card-main .status{display:inline-block;margin-top:8px}
+.expense-card-notes{font-size:12px;color:#64748b;margin-top:6px;overflow-wrap:anywhere}
+.expense-card-bottom{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:12px;padding-top:11px;border-top:1px solid #e8edf3}
+.expense-card-amount{font-size:20px;color:#182033;white-space:nowrap}
+.expense-card-actions{display:flex;gap:8px;flex-wrap:wrap}
+.expense-card-actions .btn{min-width:82px;text-align:center;padding:10px 13px;border-radius:10px;font-size:13px}
+.dashboard-sections{display:flex;flex-direction:column;gap:16px}
+.dashboard-section-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.dashboard-section-head h2{margin:0 0 8px}
+.dashboard-upcoming-list{display:flex;flex-direction:column;gap:12px}
+.dashboard-upcoming-card{border:1px solid #e6ebf2;border-radius:15px;background:#fff;padding:16px;box-shadow:0 2px 8px rgba(15,23,42,.04)}
+.dashboard-upcoming-top{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+.dashboard-upcoming-name{font-size:19px;font-weight:800;color:#182033}
+.dashboard-upcoming-meta{font-size:14px;color:#4f5f77;margin-top:5px;line-height:1.45}
+.dashboard-upcoming-amount{font-size:20px;font-weight:800;color:#182033;white-space:nowrap}
+.dashboard-upcoming-bottom{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:12px;padding-top:11px;border-top:1px solid #e8edf3}
+.dashboard-upcoming-actions{display:flex;gap:8px;flex-wrap:wrap}
+.dashboard-upcoming-actions .btn{min-width:78px}
+@media(max-width:650px){
+  .dashboard-upcoming-top{flex-direction:column;gap:5px}
+  .dashboard-upcoming-amount{font-size:21px}
+  .dashboard-upcoming-bottom{align-items:flex-start;flex-direction:column}
+  .dashboard-upcoming-actions{width:100%;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+  .dashboard-upcoming-actions .btn{width:100%;min-width:0}
+}
+
+@media(max-width:650px){
+  .expenses-card-list{gap:12px}
+  .expense-card-item{padding:14px;border-radius:15px}
+  .expense-card-title{font-size:19px}
+  .expense-card-meta{font-size:13px}
+  .expense-card-bottom{align-items:flex-start;flex-direction:column}
+  .expense-card-amount{font-size:21px}
+  .expense-card-actions{width:100%;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+  .expense-card-actions .btn{width:100%;min-width:0}
+}
 </style>
 </head>
 <body>
@@ -750,10 +794,21 @@ html,body,#application{overscroll-behavior-x:none!important;}
 <div class="stat purple dashboard-stat-click" onclick="dashboardGo('people')" title="Open People"><span class="dash-icon purple">♙</span><div class="dash-stat-copy"><small>People</small><strong id="peopleCount">0</strong><span class="subtle">Members</span></div></div>
 <div class="stat dashboard-stat-click" onclick="dashboardGo('banks')" title="Open Cash &amp; Banks"><span class="dash-icon blue">₹</span><div class="dash-stat-copy"><small>Cash Available</small><strong id="dashboardCashBalance">₹0.00</strong><span class="subtle">Cash Account</span></div></div>
 <div class="stat bank-stat dashboard-stat-click" onclick="dashboardGo('banks')" title="Open Cash &amp; Banks"><span class="dash-icon teal">▤</span><div class="dash-stat-copy"><small>Total Bank Balances</small><strong id="dashboardBankBalance">₹0.00</strong><span class="subtle">Bank Accounts</span></div></div>
+<div class="stat upcoming-total-stat dashboard-stat-click" onclick="dashboardGo('upcoming')" title="Open Upcoming Expenses"><span class="dash-icon orange">◷</span><div class="dash-stat-copy"><small>Total Upcoming Expenses</small><strong id="dashboardUpcomingTotal">₹0.00</strong><span class="subtle">Upcoming Expenses</span></div></div>
 </div>
-<div class="grid2">
-<div class="card"><div style="display:flex;justify-content:space-between;align-items:center"><h2>Latest Transactions <span class="subtle">(Current Month)</span></h2><button class="btn primary" onclick="openExpense()">+ Add Expense</button></div><div id="recent"></div></div>
-<div class="card"><h2>Upcoming Expenses</h2><div id="upcomingTotal" class="notice">0 expenses · ₹0</div><div id="dashboardUpcoming"></div></div>
+<div class="dashboard-sections">
+  <div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><h2>Latest Transactions <span class="subtle">(Current Month)</span></h2><button class="btn primary" onclick="openExpense()">+ Add Expense</button></div><div id="recent"></div></div>
+
+  <div class="card dashboard-upcoming-panel">
+    <div class="dashboard-section-head">
+      <div>
+        <h2>Upcoming Expenses</h2>
+        <div id="upcomingTotal" class="notice">0 expenses · ₹0</div>
+      </div>
+      <button class="btn secondary" onclick="page('upcoming')">View All</button>
+    </div>
+    <div id="dashboardUpcoming" class="dashboard-upcoming-list"></div>
+  </div>
 </div><div class="card" id="dashboardPeriodCard">
   <h2>Dashboard Period</h2>
   <div style="display:flex;gap:12px;flex-wrap:wrap">
@@ -790,9 +845,9 @@ html,body,#application{overscroll-behavior-x:none!important;}
 <div class="group"><label>Category</label><select id="filterCategory" onchange="renderExpenses()"></select></div>
 <div class="group"><label>Status</label><select id="filterStatus" onchange="renderExpenses()"><option value="">All</option><option>Paid</option><option>Pending</option><option>Overdue</option></select></div>
 </div>
-<div class="table-wrap">
+<div class="expenses-list-wrap">
 <div id="expensesSummary" class="stats-grid" style="margin:16px 0"></div>
-<table><thead><tr><th>Date</th><th>Expense</th><th>Amount</th><th>Category</th><th>Person</th><th>Payment Mode</th><th>Due Date</th><th>Status</th><th>Actions</th></tr></thead><tbody id="expenseTable"></tbody></table>
+<div id="expenseTable" class="expenses-card-list"></div>
 <div style="margin-top:20px;text-align:center">
   <button class="btn primary" onclick="saveExpensesPDF()">📄 Save Expenses as PDF</button>
 </div>
@@ -1183,6 +1238,28 @@ function deleteExpense(id){
   toast(returned?'Expense deleted — amount returned to account':'Expense deleted');
 }
 
+function expenseCard(e){
+  const st=statusOf(e);
+  return `
+    <div class="expense-card-item">
+      <div class="expense-card-main">
+        <div class="expense-card-title">${esc(e.name)}</div>
+        <div class="expense-card-meta">${esc(e.person)} · ${esc(e.category)} · ${esc(e.payment)}</div>
+        <div class="expense-card-meta">Date ${fmtDate(e.date)} · Due ${fmtDate(e.dueDate)}</div>
+        <span class="status ${st.toLowerCase()}">${st}</span>
+        ${e.notes ? `<div class="expense-card-notes">${esc(e.notes)}</div>` : ''}
+      </div>
+      <div class="expense-card-bottom">
+        <strong class="expense-card-amount">${money(e.amount)}</strong>
+        <div class="expense-card-actions">
+          ${st==='Pending' ? `<button type="button" class="btn success" onclick="markExpensePaid('${e.id}')">Paid</button>` : ''}
+          <button type="button" class="btn light" onclick="openExpense('${e.id}')">Edit</button>
+          <button type="button" class="btn danger" onclick="deleteExpense('${e.id}')">Delete</button>
+        </div>
+      </div>
+    </div>`;
+}
+
 function renderExpenses(){
   let q=(document.getElementById('search')?.value||'').toLowerCase();
   let p=document.getElementById('filterPerson')?.value||'';
@@ -1213,25 +1290,9 @@ function renderExpenses(){
     `;
   }
 
-  let tb=document.getElementById('expenseTable');
-  tb.innerHTML=a.length
-    ? a.map(e=>`
-      <tr>
-        <td data-label="Date">${fmtDate(e.date)}</td>
-        <td data-label="Expense">${esc(e.name)}</td>
-        <td data-label="Amount">${money(e.amount)}</td>
-        <td data-label="Category">${esc(e.category)}</td>
-        <td data-label="Person">${esc(e.person)}</td>
-        <td data-label="Payment">${esc(e.payment)}</td>
-        <td data-label="Due Date">${fmtDate(e.dueDate)}</td>
-        <td data-label="Status"><span class="status ${statusOf(e).toLowerCase()}">${statusOf(e)}</span></td>
-        <td data-label="Actions"><div class="expenseActions">
-          <button type="button" class="btn light" onclick="openExpense('${e.id}')">Edit</button>
-          <button type="button" class="btn danger" onclick="deleteExpense('${e.id}')">Delete</button>
-        </div></td>
-      </tr>
-    `).join('')
-    : '<tr><td colspan="9" class="empty">No expenses found.</td></tr>';
+  const tb=document.getElementById('expenseTable');
+  if(!tb)return;
+  tb.innerHTML=a.length ? a.map(expenseCard).join('') : '<div class="empty">No expenses found.</div>';
 }
 
 
@@ -1299,7 +1360,24 @@ function renderDashboard(){
   document.getElementById('recent').innerHTML=a.slice().sort((x,y)=>(y.date||'').localeCompare(x.date||'')).slice(0,8).map(e=>`<div class="manage-row"><span><b>${esc(e.name)}</b><br><small>${fmtDate(e.date)} · ${esc(e.person)}</small></span><b>${money(e.amount)}</b></div>`).join('')||'<div class="empty">No transactions this month.</div>';
   const d=new Date();d.setHours(0,0,0,0);const end=new Date(d);end.setDate(end.getDate()+7);const endS=end.toISOString().slice(0,10);
   let up=getExpenses().filter(e=>statusOf(e)==='Pending'&&e.dueDate&&e.dueDate>=today()&&e.dueDate<endS).sort((x,y)=>(x.dueDate||'').localeCompare(y.dueDate||''));
-  document.getElementById('dashboardUpcoming').innerHTML=up.map(e=>`<div class="manage-row"><span><b>${esc(e.name)}</b><br><small>Due ${fmtDate(e.dueDate)}</small></span><b>${money(e.amount)}</b></div>`).join('')||'<div class="empty">No expenses due in the next 7 days.</div>';
+  document.getElementById('dashboardUpcoming').innerHTML=up.slice(0,8).map(e=>`
+    <div class="dashboard-upcoming-card">
+      <div class="dashboard-upcoming-top">
+        <div>
+          <div class="dashboard-upcoming-name">${esc(e.name)}</div>
+          <div class="dashboard-upcoming-meta">${esc(e.person)} · ${esc(e.category)} · Due ${fmtDate(e.dueDate)} · ${esc(e.payment||'')}</div>
+        </div>
+        <div class="dashboard-upcoming-amount">${money(e.amount)}</div>
+      </div>
+      <div class="dashboard-upcoming-bottom">
+        <span class="status pending">Pending</span>
+        <div class="dashboard-upcoming-actions">
+          <button class="btn success" onclick="markExpensePaid('${e.id}')">Paid</button>
+          <button class="btn light" onclick="openExpense('${e.id}')">Edit</button>
+          <button class="btn danger" onclick="deleteExpense('${e.id}')">Delete</button>
+        </div>
+      </div>
+    </div>`).join('')||'<div class="empty">No expenses due in the next 7 days.</div>';
   const ut=document.getElementById('upcomingTotal');if(ut)ut.textContent=up.length+' expenses · '+money(up.reduce((s,e)=>s+Number(e.amount||0),0));
 }
 
@@ -2209,6 +2287,7 @@ function updateDashboardPeriod(){
   const recent=document.getElementById('recent');
   if(recent)recent.innerHTML=rows.slice(0,8).map(e=>`<div class="manage-row"><span><b>${esc(e.name)}</b><br><small>${fmtDate(e.date)} · ${esc(e.person)}</small></span><b>${money(e.amount)}</b></div>`).join('')||'<div class="empty">No transactions for this month.</div>';
   ensureBanks();const cash=db.banks.find(b=>b.id==='cash');const bankTotal=db.banks.filter(b=>b.id!=='cash').reduce((s,b)=>s+Number(b.balance||0),0);set('dashboardCashBalance',money(cash?.balance||0));set('dashboardBankBalance',money(bankTotal));
+  const upcomingTotal=getExpenses().filter(e=>statusOf(e)==='Pending').reduce((s,e)=>s+Number(e.amount||0),0);set('dashboardUpcomingTotal',money(upcomingTotal));
   const d=new Date();d.setHours(0,0,0,0);const end=new Date(d);end.setDate(end.getDate()+7);const endS=end.toISOString().slice(0,10);
   const up=getExpenses().filter(e=>statusOf(e)==='Pending'&&e.dueDate&&e.dueDate>=today()&&e.dueDate<endS).sort((a,b)=>(a.dueDate||'').localeCompare(b.dueDate||''));
   const dashUp=document.getElementById('dashboardUpcoming');if(dashUp)dashUp.innerHTML=up.map(e=>`<div class="manage-row"><span><b>${esc(e.name)}</b><br><small>Due ${fmtDate(e.dueDate)}</small></span><b>${money(e.amount)}</b></div>`).join('')||'<div class="empty">No expenses due in the next 7 days.</div>';
