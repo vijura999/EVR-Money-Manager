@@ -18,6 +18,9 @@
 
 .expenses-period-selector{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:4px 0 14px;padding:12px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px}.expenses-period-selector select{min-height:44px;font-weight:700}.expenses-period-selector label{font-size:12px;margin-bottom:5px;display:block;color:#344054}.stat.dashboard-stat-click{cursor:pointer}.stat.dashboard-stat-click .subtle{display:block;margin-top:5px;font-size:10px}@media(max-width:650px){.expenses-period-selector{grid-template-columns:1fr 1fr;gap:8px;padding:10px}.expenses-period-selector select{min-height:42px;font-size:13px}}
 
+/* Upcoming expenses are grouped by the next meaningful due dates. */
+.upcoming-priority-list{display:grid;gap:12px}.upcoming-priority-block{border:1px solid #e3e9f2;border-radius:13px;overflow:hidden}.upcoming-priority-title{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 12px;background:#f8fafc;color:#182640;font-size:14px;font-weight:800}.upcoming-priority-title.today{background:#eef5ff;color:#124b9f}.upcoming-priority-title.tomorrow{background:#f2faf4;color:#15713c}.upcoming-priority-title.next{background:#fff8e8;color:#8b5b00}.upcoming-priority-block .manage-row{margin:0;border:0;border-radius:0;border-top:1px solid #edf0f5}.upcoming-priority-block .manage-row:first-of-type{border-top:0}.upcoming-priority-empty{padding:14px;color:#64748b;font-size:12px}.upcoming-date-tag{font-size:11px;font-weight:700;color:#64748b;white-space:nowrap}
+
 @media(max-width:1000px){.stats{grid-template-columns:repeat(3,1fr)}.grid2{grid-template-columns:1fr}.currency-grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:650px){.action-right{width:100%;margin-left:0;justify-content:flex-end}.swipe-hint{display:block;font-size:11px;color:#64748b;margin:-5px 0 10px;text-align:center}body{padding-bottom:70px}.container{padding:13px 10px 90px}.stats{grid-template-columns:repeat(2,1fr)}.form-grid,.filters,.report-stats{grid-template-columns:1fr}.currency-grid{grid-template-columns:1fr}.top{height:58px;padding:0 12px}.top .logo::after{font-size:19px}.top-right{font-size:13px}.bottom-nav{height:64px}.bottom-nav button{font-size:9px}.bottom-nav button .ico{font-size:15px}h1{font-size:22px}.card{padding:13px}.table-wrap{margin-left:-4px;margin-right:-4px}.dashboard-period .period-inline .group{min-width:120px}}
 
 /* ===== VIJU PROFESSIONAL VISUAL DESIGN — UI ONLY ===== */
@@ -864,14 +867,16 @@ html,body,#application{overscroll-behavior-x:none!important;}
 </div>
 </div></section>
 
-<section id="upcoming" class="page"><h1>4. Upcoming Expenses <span class="subtle">(All)</span></h1>
+<section id="upcoming" class="page"><h1>4. Upcoming Expenses <span class="subtle">(by due date)</span></h1>
 <div class="stats-grid upcoming-summary">
-  <div class="stat"><small>Total Upcoming Expenses</small><strong id="upcomingGrandTotal">₹0.00</strong><span class="subtle">All Pending</span></div>
-  <div class="stat"><small>Upcoming Count</small><strong id="upcomingGrandCount">0</strong><span class="subtle">Expenses</span></div>
+  <div class="stat"><small>Pending Today</small><strong id="todayPendingTotal">₹0.00</strong><span id="todayPendingCount" class="subtle">0 expenses</span></div>
+  <div class="stat"><small>Pending Tomorrow</small><strong id="tomorrowPendingTotal">₹0.00</strong><span id="tomorrowPendingCount" class="subtle">0 expenses</span></div>
+  <div class="stat"><small>Next Upcoming Expense</small><strong id="nextUpcomingTotal">₹0.00</strong><span id="nextUpcomingDate" class="subtle">None scheduled</span></div>
+  <div class="stat"><small>Total Upcoming Expenses</small><strong id="upcomingGrandTotal">₹0.00</strong><span id="upcomingGrandCount" class="subtle">0 expenses</span></div>
   <div class="stat"><small>Total Overdue</small><strong id="upcomingOverdueTotal">₹0.00</strong><span class="subtle">All Overdue</span></div>
 </div>
 <div class="grid2">
- <div class="card"><h2>Upcoming</h2><div id="upcomingList"></div></div>
+ <div class="card"><h2>Pending schedule</h2><div id="upcomingList" class="upcoming-priority-list"></div></div>
  <div class="card"><h2>Overdue</h2><div id="overdueList"></div>
   <div style="margin-top:20px;text-align:center"><button class="btn primary" onclick="saveUpcomingPDF()">📄 Save Upcoming &amp; Overdue as PDF</button></div>
  </div>
@@ -1434,14 +1439,26 @@ function upcomingExpenseCard(e){
 function renderUpcoming(){
   const all=getExpenses();
   const todayDate=today();
+  const tomorrowDate=new Date(todayDate+'T12:00:00');
+  tomorrowDate.setDate(tomorrowDate.getDate()+1);
+  const tomorrow=tomorrowDate.toISOString().slice(0,10);
   // Upcoming means pending expenses due today or later, always ordered from today forward.
   const upcoming=all.filter(e=>statusOf(e)==='Pending' && e.dueDate && e.dueDate>=todayDate)
     .sort((a,b)=>(a.dueDate||'').localeCompare(b.dueDate||''));
   const overdue=all.filter(e=>statusOf(e)==='Overdue')
     .sort((a,b)=>(a.dueDate||'').localeCompare(b.dueDate||''));
 
-  const upTotal=upcoming.reduce((s,e)=>s+Number(e.amount||0),0);
-  const ovTotal=overdue.reduce((s,e)=>s+Number(e.amount||0),0);
+  const todayPending=upcoming.filter(e=>e.dueDate===todayDate);
+  const tomorrowPending=upcoming.filter(e=>e.dueDate===tomorrow);
+  const futurePending=upcoming.filter(e=>e.dueDate>tomorrow);
+  const nextDate=futurePending[0]?.dueDate||'';
+  const nextUpcoming=nextDate?futurePending.filter(e=>e.dueDate===nextDate):[];
+  const laterPending=nextDate?futurePending.filter(e=>e.dueDate>nextDate):[];
+  const total=rows=>rows.reduce((sum,e)=>sum+Number(e.amount||0),0);
+  const block=(title,kind,rows,empty)=>`<section class="upcoming-priority-block"><div class="upcoming-priority-title ${kind}"><span>${title}</span><span class="upcoming-date-tag">${rows.length?rows.length+' expense'+(rows.length===1?'':'s'):''}</span></div>${rows.map(upcomingExpenseCard).join('')||'<div class="upcoming-priority-empty">'+empty+'</div>'}</section>`;
+
+  const upTotal=total(upcoming);
+  const ovTotal=total(overdue);
 
   // Update the Upcoming Expenses summary cards at the top of the page.
   const grandTotal=document.getElementById('upcomingGrandTotal');
@@ -1450,6 +1467,13 @@ function renderUpcoming(){
   if(grandTotal) grandTotal.textContent=money(upTotal);
   if(grandCount) grandCount.textContent=upcoming.length;
   if(overdueTotal) overdueTotal.textContent=money(ovTotal);
+  const set=(id,value)=>{const el=document.getElementById(id);if(el)el.textContent=value;};
+  set('todayPendingTotal',money(total(todayPending)));
+  set('todayPendingCount',todayPending.length+' expense'+(todayPending.length===1?'':'s'));
+  set('tomorrowPendingTotal',money(total(tomorrowPending)));
+  set('tomorrowPendingCount',tomorrowPending.length+' expense'+(tomorrowPending.length===1?'':'s'));
+  set('nextUpcomingTotal',money(total(nextUpcoming)));
+  set('nextUpcomingDate',nextDate?'Due '+fmtDate(nextDate):'None scheduled');
 
   const upCount=document.getElementById('upcomingTotal');
   if(upCount) upCount.textContent=upcoming.length+" expenses · "+money(upTotal);
@@ -1458,8 +1482,10 @@ function renderUpcoming(){
   if(ovCount) ovCount.textContent=overdue.length+" expenses · "+money(ovTotal);
 
   document.getElementById('upcomingList').innerHTML =
-    upcoming.map(upcomingExpenseCard).join('') ||
-    '<div class="empty">No upcoming expenses.</div>';
+    block('Today — '+fmtDate(todayDate),'today',todayPending,'No pending expenses due today.')+
+    block('Tomorrow — '+fmtDate(tomorrow),'tomorrow',tomorrowPending,'No pending expenses due tomorrow.')+
+    (nextDate?block('Next upcoming — '+fmtDate(nextDate),'next',nextUpcoming,''):'<section class="upcoming-priority-block"><div class="upcoming-priority-title next">Next upcoming expense</div><div class="upcoming-priority-empty">No future pending expenses are scheduled.</div></section>')+
+    (laterPending.length?block('Later upcoming expenses','',laterPending,''): '');
 
   document.getElementById('overdueList').innerHTML = overdue.map(upcomingExpenseCard).join('') || '<div class="empty">No overdue expenses.</div>';const op=document.getElementById('overduePageList');if(op)op.innerHTML=overdue.map(upcomingExpenseCard).join('') || '<div class="empty">No overdue expenses.</div>';
 }
