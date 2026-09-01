@@ -16,6 +16,8 @@
 .dash-head{display:flex;align-items:baseline;gap:8px}.dash-head .period-label{font-size:12px;color:#64748b}.dashboard-period{margin-top:16px}.period-inline{display:flex;gap:10px;align-items:end;flex-wrap:wrap}.period-inline .group{min-width:150px}.quick-links{display:flex;gap:8px;flex-wrap:wrap}.section-bar{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px}.bank-tabs{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px}.bank-tabs button.active{background:#1769e8;color:#fff}.bank-sub{display:none}.bank-sub.active{display:block}
 .bottom-nav{position:fixed;left:0;right:0;bottom:0;height:68px;background:#061a3d;color:#fff;display:grid;grid-template-columns:repeat(6,1fr);z-index:90;box-shadow:0 -3px 12px rgba(0,0,0,.18)}.bottom-nav button{border:0;background:transparent;color:#fff;font-size:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}.bottom-nav button .ico{font-size:17px;line-height:1}.bottom-nav button.active{background:#0d2c61}.menu-panel{position:fixed;top:64px;left:10px;background:#fff;border:1px solid #dbe2ea;border-radius:10px;box-shadow:0 8px 25px rgba(0,0,0,.16);padding:8px;display:none;z-index:80;min-width:190px}.menu-panel.show{display:block}.menu-panel button{width:100%;text-align:left;border:0;background:#fff;padding:10px;border-radius:7px}.menu-panel button:hover{background:#f1f5f9} .dashboard-stat-click{cursor:pointer;transition:transform .12s,box-shadow .12s}.dashboard-stat-click:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(15,23,42,.12)} .action-right{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}.upcoming-summary{margin-bottom:14px}.swipe-hint{display:none}
 
+.expenses-period-selector{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:4px 0 14px;padding:12px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px}.expenses-period-selector select{min-height:44px;font-weight:700}.expenses-period-selector label{font-size:12px;margin-bottom:5px;display:block;color:#344054}.stat.dashboard-stat-click{cursor:pointer}.stat.dashboard-stat-click .subtle{display:block;margin-top:5px;font-size:10px}@media(max-width:650px){.expenses-period-selector{grid-template-columns:1fr 1fr;gap:8px;padding:10px}.expenses-period-selector select{min-height:42px;font-size:13px}}
+
 @media(max-width:1000px){.stats{grid-template-columns:repeat(3,1fr)}.grid2{grid-template-columns:1fr}.currency-grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:650px){.action-right{width:100%;margin-left:0;justify-content:flex-end}.swipe-hint{display:block;font-size:11px;color:#64748b;margin:-5px 0 10px;text-align:center}body{padding-bottom:70px}.container{padding:13px 10px 90px}.stats{grid-template-columns:repeat(2,1fr)}.form-grid,.filters,.report-stats{grid-template-columns:1fr}.currency-grid{grid-template-columns:1fr}.top{height:58px;padding:0 12px}.top .logo::after{font-size:19px}.top-right{font-size:13px}.bottom-nav{height:64px}.bottom-nav button{font-size:9px}.bottom-nav button .ico{font-size:15px}h1{font-size:22px}.card{padding:13px}.table-wrap{margin-left:-4px;margin-right:-4px}.dashboard-period .period-inline .group{min-width:120px}}
 
 /* ===== VIJU PROFESSIONAL VISUAL DESIGN — UI ONLY ===== */
@@ -839,6 +841,14 @@ html,body,#application{overscroll-behavior-x:none!important;}
 <section id="expenses" class="page">
 <h1>2. Expenses <span class="subtle">(All)</span></h1><div class="card">
 <div style="display:flex;justify-content:space-between;align-items:center"><h2>All Expenses</h2><button class="btn primary" onclick="openExpense()">+ Add Expense</button></div><br>
+<div class="expenses-period-selector">
+  <div class="group"><label>Month</label><select id="expenseMonth" onchange="renderExpenses()">
+    <option value="1">January</option><option value="2">February</option><option value="3">March</option><option value="4">April</option>
+    <option value="5">May</option><option value="6">June</option><option value="7">July</option><option value="8">August</option>
+    <option value="9">September</option><option value="10">October</option><option value="11">November</option><option value="12">December</option>
+  </select></div>
+  <div class="group"><label>Year</label><select id="expenseYear" onchange="renderExpenses()"></select></div>
+</div>
 <div class="filters">
 <div class="group"><label>Search</label><input id="search" oninput="renderExpenses()" placeholder="Search"></div>
 <div class="group"><label>Person</label><select id="filterPerson" onchange="renderExpenses()"></select></div>
@@ -1265,13 +1275,18 @@ function renderExpenses(){
   let p=document.getElementById('filterPerson')?.value||'';
   let c=document.getElementById('filterCategory')?.value||'';
   let st=document.getElementById('filterStatus')?.value||'';
+  const now=new Date();
+  const selectedMonth=Number(document.getElementById('expenseMonth')?.value||now.getMonth()+1);
+  const selectedYear=Number(document.getElementById('expenseYear')?.value||now.getFullYear());
+  const ym=String(selectedYear)+'-'+String(selectedMonth).padStart(2,'0');
 
   let a=getExpenses().filter(e=>
+    (e.date||'').startsWith(ym) &&
     (!q||(e.name+' '+e.notes+' '+e.category+' '+e.person).toLowerCase().includes(q)) &&
     (!p||e.person===p) &&
     (!c||e.category===c) &&
     (!st||statusOf(e)===st)
-  );
+  ).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
 
   const total=a.reduce((s,e)=>s+Number(e.amount||0),0);
   const paid=a.filter(e=>statusOf(e)==='Paid').reduce((s,e)=>s+Number(e.amount||0),0);
@@ -1283,7 +1298,7 @@ function renderExpenses(){
     summary.innerHTML=`
       <div class="stat"><b>Total</b><strong>${money(total)}</strong></div>
       <div class="stat"><b>Paid</b><strong>${money(paid)}</strong></div>
-      <div class="stat"><b>Unpaid / Pending</b><strong>${money(pending)}</strong></div>
+      <div class="stat dashboard-stat-click" onclick="openPendingExpenses()"><b>Unpaid / Pending</b><strong>${money(pending)}</strong><span class="subtle">Tap to view pending</span></div>
       <div class="stat"><b>Overdue</b><strong>${money(overdue)}</strong></div>
       <div class="stat dashboard-stat-click" onclick="dashboardGo('upcoming')"><b>Total Upcoming Expenses</b><strong>${money(getExpenses().filter(e=>statusOf(e)==='Pending').reduce((s,e)=>s+Number(e.amount||0),0))}</strong></div>
       <div class="stat"><b>Expenses</b><strong>${a.length}</strong></div>
@@ -1402,8 +1417,12 @@ function upcomingExpenseCard(e){
 
 function renderUpcoming(){
   const all=getExpenses();
-  const upcoming=all.filter(e=>statusOf(e)==='Pending');
-  const overdue=all.filter(e=>statusOf(e)==='Overdue');
+  const todayDate=today();
+  // Upcoming means pending expenses due today or later, always ordered from today forward.
+  const upcoming=all.filter(e=>statusOf(e)==='Pending' && e.dueDate && e.dueDate>=todayDate)
+    .sort((a,b)=>(a.dueDate||'').localeCompare(b.dueDate||''));
+  const overdue=all.filter(e=>statusOf(e)==='Overdue')
+    .sort((a,b)=>(a.dueDate||'').localeCompare(b.dueDate||''));
 
   const upTotal=upcoming.reduce((s,e)=>s+Number(e.amount||0),0);
   const ovTotal=overdue.reduce((s,e)=>s+Number(e.amount||0),0);
@@ -2238,8 +2257,25 @@ document.addEventListener("DOMContentLoaded",function(){
 });
 
 document.addEventListener("DOMContentLoaded",function(){initDashboardPeriod();ensureBanks();var s=document.getElementById('eStatus');if(s)s.addEventListener('change',toggleExpenseAccount);});
+document.addEventListener("DOMContentLoaded",function(){initExpensesPeriod();renderExpenses();});
 
 function dashboardGo(id,status){if(status){page(id);const s=document.getElementById('filterStatus');if(s){s.value=status;renderExpenses()}}else page(id)}
+
+function openPendingExpenses(){
+  page('upcoming');
+  renderUpcoming();
+}
+
+function initExpensesPeriod(){
+  const y=document.getElementById('expenseYear'),m=document.getElementById('expenseMonth');
+  if(!y||!m)return;
+  const now=new Date(),current=now.getFullYear();
+  y.innerHTML='';
+  for(let year=current-10;year<=current+10;year++) y.innerHTML+='<option value="'+year+'">'+year+'</option>';
+  if(!m.value) m.value=String(now.getMonth()+1);
+  if(!y.value) y.value=String(current);
+}
+
 
 // Close the hamburger menu whenever the user taps/clicks outside it.
 document.addEventListener('click',function(ev){const m=document.getElementById('menuPanel'),h=document.querySelector('.hamb');if(m&&m.classList.contains('show')&&!m.contains(ev.target)&&ev.target!==h)m.classList.remove('show')});
@@ -2269,7 +2305,7 @@ function saveBankSubTransaction(kind){ensureBanks();let type=kind,from='',to='',
 const _oldRenderDashboard=renderDashboard;
 renderDashboard=function(){_oldRenderDashboard();ensureBanks();const el=document.getElementById('dashboardBankBalance');const cash=db.banks.find(b=>b.id==='cash');const bankTotal=db.banks.filter(b=>b.id!=='cash').reduce((s,b)=>s+Number(b.balance||0),0);if(el)el.textContent=money(bankTotal);const cashEl=document.getElementById('dashboardCashBalance');if(cashEl)cashEl.textContent=money(cash?.balance||0);const m=document.getElementById('dashboardMonth'),y=document.getElementById('dashboardYear');if(m&&y){const now=new Date();if(!m.value)m.value=String(now.getMonth()+1);if(!y.value)y.value=String(now.getFullYear())}};
 const _oldPage=page;
-page=function(id,btn){_oldPage(id,btn);document.querySelectorAll('.bottom-nav button').forEach(b=>b.classList.remove('active'));const map={dashboard:0,expenses:1,upcoming:2,people:3,banks:4,reports:5};if(map[id]!=null){const b=document.querySelectorAll('.bottom-nav button')[map[id]];if(b)b.classList.add('active')}if(id==='banks')syncBankSubSelects();if(id==='dashboard')initDashboardPeriod();};
+page=function(id,btn){_oldPage(id,btn);document.querySelectorAll('.bottom-nav button').forEach(b=>b.classList.remove('active'));const map={dashboard:0,expenses:1,upcoming:2,people:3,banks:4,reports:5};if(map[id]!=null){const b=document.querySelectorAll('.bottom-nav button')[map[id]];if(b)b.classList.add('active')}if(id==='banks')syncBankSubSelects();if(id==='dashboard')initDashboardPeriod();if(id==='expenses'){initExpensesPeriod();renderExpenses();}};
 window.addEventListener('load',function(){syncBankSubSelects();});
 
 // Final dashboard behavior: latest/current month by default; selecting Dashboard Period changes only the dashboard month.
