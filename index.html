@@ -1114,7 +1114,7 @@ function getExpenses(){return [...db.expenses].sort((a,b)=>(b.date||'').localeCo
 function statusOf(e){if(e.status==='Paid')return 'Paid';if(e.dueDate&&e.dueDate<today())return 'Overdue';return 'Pending'}
 function toast(t){let x=document.getElementById('toast');x.textContent=t;x.classList.add('show');setTimeout(()=>x.classList.remove('show'),2200)}
 
-function page(id,btn){document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));const t=document.getElementById(id);if(!t)return;t.classList.add('active');document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('active'));if(btn)btn.classList.add('active');if(id==='reports')renderReports();if(id==='banks')renderBanks();if(id==='overdue')renderUpcoming();window.scrollTo(0,0)}
+function page(id,btn){document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));const t=document.getElementById(id);if(!t)return;t.classList.add('active');document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('active'));if(btn)btn.classList.add('active');if(id==='reports')renderReports();if(id==='banks')renderBanks();if(id==='upcoming'||id==='overdue')renderUpcoming();window.scrollTo(0,0)}
 function fillSelect(id,items,allLabel){let s=document.getElementById(id);if(!s)return;let old=s.value;s.innerHTML=(allLabel?`<option value="">${esc(allLabel)}</option>`:'')+items.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('');if([...s.options].some(o=>o.value===old))s.value=old}
 function initReportYears(){
   const current=new Date().getFullYear();
@@ -1296,8 +1296,18 @@ function renderExpenses(){
 
   const total=a.reduce((s,e)=>s+Number(e.amount||0),0);
   const paid=a.filter(e=>statusOf(e)==='Paid').reduce((s,e)=>s+Number(e.amount||0),0);
-  const pending=a.filter(e=>statusOf(e)==='Pending').reduce((s,e)=>s+Number(e.amount||0),0);
-  const overdue=a.filter(e=>statusOf(e)==='Overdue').reduce((s,e)=>s+Number(e.amount||0),0);
+
+  // Pending/overdue cards are global status shortcuts, not limited by the
+  // selected transaction month. Pending means due today or later, and is
+  // always ordered from today into the future on the Upcoming page.
+  const allExpenses=getExpenses();
+  const todayDate=today();
+  const pendingRows=allExpenses.filter(e=>statusOf(e)==='Pending' && e.dueDate && e.dueDate>=todayDate)
+    .sort((x,y)=>(x.dueDate||'').localeCompare(y.dueDate||''));
+  const overdueRows=allExpenses.filter(e=>statusOf(e)==='Overdue')
+    .sort((x,y)=>(x.dueDate||'').localeCompare(y.dueDate||''));
+  const pending=pendingRows.reduce((s,e)=>s+Number(e.amount||0),0);
+  const overdue=overdueRows.reduce((s,e)=>s+Number(e.amount||0),0);
 
   const summary=document.getElementById('expensesSummary');
   if(summary){
@@ -1305,8 +1315,8 @@ function renderExpenses(){
       <div class="stat"><b>Total</b><strong>${money(total)}</strong></div>
       <div class="stat"><b>Paid</b><strong>${money(paid)}</strong></div>
       <div class="stat dashboard-stat-click" onclick="openPendingExpenses()"><b>Unpaid / Pending</b><strong>${money(pending)}</strong><span class="subtle">Tap to view pending</span></div>
-      <div class="stat"><b>Overdue</b><strong>${money(overdue)}</strong></div>
-      <div class="stat dashboard-stat-click" onclick="dashboardGo('upcoming')"><b>Total Upcoming Expenses</b><strong>${money(getExpenses().filter(e=>statusOf(e)==='Pending').reduce((s,e)=>s+Number(e.amount||0),0))}</strong></div>
+      <div class="stat dashboard-stat-click" onclick="openOverdueExpenses()"><b>Overdue</b><strong>${money(overdue)}</strong><span class="subtle">Tap to view overdue</span></div>
+      <div class="stat dashboard-stat-click" onclick="dashboardGo('upcoming')"><b>Total Upcoming Expenses</b><strong>${money(pending)}</strong></div>
       <div class="stat"><b>Expenses</b><strong>${a.length}</strong></div>
     `;
   }
@@ -2269,6 +2279,11 @@ function dashboardGo(id,status){if(status){page(id);const s=document.getElementB
 
 function openPendingExpenses(){
   page('upcoming');
+  renderUpcoming();
+}
+
+function openOverdueExpenses(){
+  page('overdue');
   renderUpcoming();
 }
 
