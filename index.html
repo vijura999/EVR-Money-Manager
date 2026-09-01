@@ -241,6 +241,24 @@ th,td{padding:7px 8px}
   .stat{padding:9px 8px}
   .dash-icon{width:31px;height:31px;min-width:31px}
 }
+
+/* EVR EXPENSES MOBILE SCROLL FIX */
+.tableWrap{overflow-x:hidden!important;overscroll-behavior-x:none;touch-action:pan-y;max-width:100%;}
+.table{width:100%;max-width:100%;}
+.expenseActions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;}
+.expenseActions .btn{margin:0;}
+@media (max-width:700px){
+  #expenseTableWrap{overflow-x:hidden!important;touch-action:pan-y;overscroll-behavior-x:none;}
+  #expenseTable,#expenseTable tbody{display:block;width:100%;}
+  #expenseTable thead{display:none;}
+  #expenseTable tr{display:block;width:100%;margin:0 0 12px;padding:12px;background:#fff;border:1px solid #e3e8f0;border-radius:14px;box-shadow:0 2px 8px rgba(15,23,42,.05);}
+  #expenseTable td{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;width:100%;box-sizing:border-box;border:0!important;padding:7px 0;text-align:right;word-break:break-word;}
+  #expenseTable td::before{content:attr(data-label);font-weight:700;color:#64748b;text-align:left;flex:0 0 42%;}
+  #expenseTable td:last-child{display:block;text-align:left;padding-top:10px;margin-top:5px;border-top:1px solid #edf1f6!important;}
+  #expenseTable td:last-child::before{display:none;}
+  #expenseTable .expenseActions{justify-content:flex-start;}
+  #expenseTable .expenseActions .btn{flex:1;min-width:110px;}
+}
 </style>
 
 <style>
@@ -1093,23 +1111,50 @@ function markExpensePaid(id){
 }
 
 function deleteExpense(id){
-  const expense=db.expenses.find(x=>x.id===id);
+  ensureBanks();
+  const expense=db.expenses.find(x=>String(x.id)===String(id));
   if(!expense)return;
   if(!confirm('Delete this expense?'))return;
 
-  // If this was a Paid expense, return the money to the same Cash/Bank account.
-  // Pending/Overdue expenses never reduced an account balance, so nothing is returned.
-  if(expense.status==='Paid' && expense.accountId){
-    ensureBanks();
-    const account=db.banks.find(b=>b.id===expense.accountId);
+  const amount=Number(expense.amount||0);
+  let returned=false;
+  let account=null;
+
+  // Paid expenses reduce an account balance. When deleted, reverse that exact
+  // reduction and return the money to the same account. Pending/Overdue
+  // expenses did not reduce an account, so their deletion changes no balance.
+  if(expense.status==='Paid' && amount>0){
+    // Current format.
+    if(expense.accountId){
+      account=db.banks.find(b=>String(b.id)===String(expense.accountId))||null;
+    }
+
+    // Compatibility with older EVR expense records that may have stored the
+    // account under a different property/name.
+    if(!account){
+      const legacyId=expense.bankId||expense.account||expense.paidFrom;
+      if(legacyId) account=db.banks.find(b=>String(b.id)===String(legacyId))||null;
+    }
+    if(!account){
+      const legacyName=expense.accountName||expense.bankName||expense.paidFromName;
+      if(legacyName) account=db.banks.find(b=>String(b.name).toLowerCase()===String(legacyName).toLowerCase())||null;
+    }
+
+    // Older records using Cash payment without an explicit account belong to Cash.
+    if(!account && String(expense.payment||'').toLowerCase()==='cash'){
+      account=db.banks.find(b=>b.id==='cash')||null;
+    }
+
     if(account){
-      account.balance=Number(account.balance||0)+Number(expense.amount||0);
+      account.balance=Number(account.balance||0)+amount;
+      returned=true;
     }
   }
 
-  db.expenses=db.expenses.filter(x=>x.id!==id);
+  db.expenses=db.expenses.filter(x=>String(x.id)!==String(id));
   saveDB();
-  toast('Expense deleted and amount returned to account');
+  renderAll();
+  toast(returned ? 'Expense deleted — amount returned to account' : 'Expense deleted');
 }
 function renderExpenses(){
   let q=(document.getElementById('search')?.value||'').toLowerCase();
@@ -1145,18 +1190,18 @@ function renderExpenses(){
   tb.innerHTML=a.length
     ? a.map(e=>`
       <tr>
-        <td>${fmtDate(e.date)}</td>
-        <td>${esc(e.name)}</td>
-        <td>${money(e.amount)}</td>
-        <td>${esc(e.category)}</td>
-        <td>${esc(e.person)}</td>
-        <td>${esc(e.payment)}</td>
-        <td>${fmtDate(e.dueDate)}</td>
-        <td><span class="status ${statusOf(e).toLowerCase()}">${statusOf(e)}</span></td>
-        <td>
-          <button class="btn light" onclick="openExpense('${e.id}')">Edit</button>
-          <button class="btn danger" onclick="deleteExpense('${e.id}')">Delete</button>
-        </td>
+        <td data-label="Date">${fmtDate(e.date)}</td>
+        <td data-label="Expense">${esc(e.name)}</td>
+        <td data-label="Amount">${money(e.amount)}</td>
+        <td data-label="Category">${esc(e.category)}</td>
+        <td data-label="Person">${esc(e.person)}</td>
+        <td data-label="Payment">${esc(e.payment)}</td>
+        <td data-label="Due Date">${fmtDate(e.dueDate)}</td>
+        <td data-label="Status"><span class="status ${statusOf(e).toLowerCase()}">${statusOf(e)}</span></td>
+        <td data-label="Actions"><div class="expenseActions">
+          <button type="button" class="btn light" onclick="openExpense('${e.id}')">Edit</button>
+          <button type="button" class="btn danger" onclick="deleteExpense('${e.id}')">Delete</button>
+        </div></td>
       </tr>
     `).join('')
     : '<tr><td colspan="9" class="empty">No expenses found.</td></tr>';
