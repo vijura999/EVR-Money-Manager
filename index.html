@@ -861,6 +861,10 @@ html,body,#application{overscroll-behavior-x:none!important;}
 <div class="expenses-list-wrap">
 <div id="expensesSummary" class="stats-grid" style="margin:16px 0"></div>
 <div id="expenseTable" class="expenses-card-list"></div>
+<div class="expenses-list-wrap">
+<div id="expensesSummary" class="stats-grid" style="margin:16px 0"></div>
+<div class="card" style="margin:0 0 16px"><h2>Pending schedule</h2><div id="expensesPriority" class="upcoming-priority-list"></div></div>
+<div id="expenseTable" class="expenses-card-list"></div>
 <div style="margin-top:20px;text-align:center">
   <button class="btn primary" onclick="saveExpensesPDF()">📄 Save Expenses as PDF</button>
 </div>
@@ -1313,8 +1317,21 @@ function renderExpenses(){
     .sort((x,y)=>(x.dueDate||'').localeCompare(y.dueDate||''));
   const pending=pendingRows.reduce((s,e)=>s+Number(e.amount||0),0);
   const overdue=overdueRows.reduce((s,e)=>s+Number(e.amount||0),0);
+  const pending=pendingRows.reduce((s,e)=>s+Number(e.amount||0),0);
+  const overdue=overdueRows.reduce((s,e)=>s+Number(e.amount||0),0);
+  const tomorrowDate=new Date(todayDate+'T12:00:00');
+  tomorrowDate.setDate(tomorrowDate.getDate()+1);
+  const tomorrow=tomorrowDate.toISOString().slice(0,10);
+  const todayPending=pendingRows.filter(e=>e.dueDate===todayDate);
+  const tomorrowPending=pendingRows.filter(e=>e.dueDate===tomorrow);
+  const futurePending=pendingRows.filter(e=>e.dueDate>tomorrow);
+  const nextDate=futurePending[0]?.dueDate||'';
+  const nextPending=nextDate?futurePending.filter(e=>e.dueDate===nextDate):[];
+  const laterPending=nextDate?futurePending.filter(e=>e.dueDate>nextDate):[];
+  const priorityBlock=(title,kind,rows,empty)=>`<section class="upcoming-priority-block"><div class="upcoming-priority-title ${kind}"><span>${title}</span><span class="upcoming-date-tag">${rows.length?rows.length+' expense'+(rows.length===1?'':'s'):''}</span></div>${rows.map(upcomingExpenseCard).join('')||'<div class="upcoming-priority-empty">'+empty+'</div>'}</section>`;
 
   const summary=document.getElementById('expensesSummary');
+  if(summary){
   if(summary){
     summary.innerHTML=`
       <div class="stat"><b>Total</b><strong>${money(total)}</strong></div>
@@ -1324,6 +1341,18 @@ function renderExpenses(){
       <div class="stat dashboard-stat-click" onclick="dashboardGo('upcoming')"><b>Total Upcoming Expenses</b><strong>${money(pending)}</strong></div>
       <div class="stat"><b>Expenses</b><strong>${a.length}</strong></div>
     `;
+  }
+
+  const tb=document.getElementById('expenseTable');
+  }
+
+  const priority=document.getElementById('expensesPriority');
+  if(priority){
+    priority.innerHTML=
+      priorityBlock('Today — '+fmtDate(todayDate),'today',todayPending,'No pending expenses due today.')+
+      priorityBlock('Tomorrow — '+fmtDate(tomorrow),'tomorrow',tomorrowPending,'No pending expenses due tomorrow.')+
+      (nextDate?priorityBlock('Next upcoming — '+fmtDate(nextDate),'next',nextPending,''):'<section class="upcoming-priority-block"><div class="upcoming-priority-title next">Next upcoming expense</div><div class="upcoming-priority-empty">No future pending expenses are scheduled.</div></section>')+
+      (laterPending.length?priorityBlock('Later upcoming expenses','',laterPending,''):'');
   }
 
   const tb=document.getElementById('expenseTable');
@@ -1736,6 +1765,12 @@ function createStyledTablePDF(options){
   const subtitle=options.subtitle||'';
   const headers=options.headers||[];
   const widths=options.widths||headers.map(()=>usable/headers.length);
+  const headers=options.headers||[];
+  // Keep every table, including its final Status column, within the printable area.
+  const requestedWidths=options.widths||headers.map(()=>usable/headers.length);
+  const requestedTotal=requestedWidths.reduce((sum,width)=>sum+Number(width||0),0);
+  const widthScale=requestedTotal>usable ? usable/requestedTotal : 1;
+  const widths=requestedWidths.map(width=>Number(width||0)*widthScale);
   const rows=options.rows||[];
   const summary=options.summary||[];
   const tableW=widths.reduce((a,b)=>a+b,0);
@@ -1847,7 +1882,10 @@ function expenseRowsForCurrentFilters(){
 }
 
 const PDF_EXPENSE_HEADERS=['Date','Expense','Amount','Category','Person','Payment','Due Date','Status'];
+// These add up to the printable page width (535pt), so the Status column and
+// its right border are never clipped on any expenses-related PDF.
 const PDF_EXPENSE_WIDTHS=[58,122,70,76,76,78,58,55];
+const PDF_EXPENSE_WIDTHS=[48,112,60,67,63,67,59,59];
 function expensePdfValues(e){return [fmtDate(e.date),e.name,pdfMoney(e.amount),e.category,e.person,e.payment,fmtDate(e.dueDate),statusOf(e)];}
 
 function saveDashboardPDF(){
