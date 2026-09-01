@@ -1092,7 +1092,25 @@ function markExpensePaid(id){
   toast("Expense marked as Paid.");
 }
 
-function deleteExpense(id){if(!confirm('Delete this expense?'))return;db.expenses=db.expenses.filter(x=>x.id!==id);saveDB();refreshAll();toast('Expense deleted')}
+function deleteExpense(id){
+  const expense=db.expenses.find(x=>x.id===id);
+  if(!expense)return;
+  if(!confirm('Delete this expense?'))return;
+
+  // If this was a Paid expense, return the money to the same Cash/Bank account.
+  // Pending/Overdue expenses never reduced an account balance, so nothing is returned.
+  if(expense.status==='Paid' && expense.accountId){
+    ensureBanks();
+    const account=db.banks.find(b=>b.id===expense.accountId);
+    if(account){
+      account.balance=Number(account.balance||0)+Number(expense.amount||0);
+    }
+  }
+
+  db.expenses=db.expenses.filter(x=>x.id!==id);
+  saveDB();
+  toast('Expense deleted and amount returned to account');
+}
 function renderExpenses(){
   let q=(document.getElementById('search')?.value||'').toLowerCase();
   let p=document.getElementById('filterPerson')?.value||'';
