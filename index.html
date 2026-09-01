@@ -1909,12 +1909,12 @@ function saveTablePDF(options){
   pdfDownload(createStyledTablePDF(options),options.filename||'VIJU-MONEY-MANAGER.pdf');
 }
 
-function expenseRowsForCurrentFilters(){
+function expenseRowsForCurrentFilters(ignoreStatus=false){
   let q=(document.getElementById('search')?.value||'').toLowerCase();
   let p=document.getElementById('filterPerson')?.value||'';
   let c=document.getElementById('filterCategory')?.value||'';
   let st=document.getElementById('filterStatus')?.value||'';
-  return getExpenses().filter(e=>(!q||(e.name+' '+e.notes+' '+e.category+' '+e.person).toLowerCase().includes(q))&&(!p||e.person===p)&&(!c||e.category===c)&&(!st||statusOf(e)===st));
+  return getExpenses().filter(e=>(!q||(e.name+' '+e.notes+' '+e.category+' '+e.person).toLowerCase().includes(q))&&(!p||e.person===p)&&(!c||e.category===c)&&(ignoreStatus||!st||statusOf(e)===st));
 }
 
 const PDF_EXPENSE_HEADERS=['Date','Expense','Amount','Category','Person','Payment','Due Date','Status'];
@@ -1936,7 +1936,9 @@ function saveDashboardPDF(){
 }
 
 function saveExpensesPDF(){
-  const rows=expenseRowsForCurrentFilters();
+  // Always export all three statuses. The screen's Paid/Pending/Overdue
+  // filter is for browsing only and must not hide sections in this PDF.
+  const rows=expenseRowsForCurrentFilters(true);
   const total=rows.reduce((s,e)=>s+Number(e.amount||0),0);
   const paid=rows.filter(e=>statusOf(e)==='Paid').reduce((s,e)=>s+Number(e.amount||0),0);
   const pending=rows.filter(e=>statusOf(e)==='Pending').reduce((s,e)=>s+Number(e.amount||0),0);
