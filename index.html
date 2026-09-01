@@ -242,6 +242,11 @@ th,td{padding:7px 8px}
   .dash-icon{width:31px;height:31px;min-width:31px}
 }
 
+/* EVR SCROLL / NAVIGATION SAFETY FIX */
+html,body,#application{overscroll-behavior-x:none!important;}
+#application{touch-action:pan-y!important;}
+#expenses{touch-action:pan-y!important;}
+#expenseTableWrap,.table-wrap{overscroll-behavior-x:contain!important;}
 /* EVR EXPENSES MOBILE SCROLL FIX */
 .tableWrap{overflow-x:hidden!important;overscroll-behavior-x:none;touch-action:pan-y;max-width:100%;}
 .table{width:100%;max-width:100%;}
@@ -1076,38 +1081,83 @@ function initMonths(){let names=['January','February','March','April','May','Jun
 function openExpense(id=null){editId=id;document.getElementById('modalTitle').textContent=id?'Edit Expense':'Add Expense';fillSelect('eCategory',db.categories);fillSelect('ePerson',db.people);let e=db.expenses.find(x=>x.id===id);
 document.getElementById('eName').value=e?.name||'';document.getElementById('eAmount').value=e?.amount??'';document.getElementById('eCategory').value=e?.category||db.categories[0];document.getElementById('ePerson').value=e?.person||db.people[0];document.getElementById('eDate').value=e?.date||today();document.getElementById('eDueDate').value=e?.dueDate||'';document.getElementById('ePayment').value=e?.payment||'Cash';document.getElementById('eStatus').value=e?.status||'Paid';fillAccountSelect('eAccount');document.getElementById('eAccount').value=e?.accountId||'';document.getElementById('eNotes').value=e?.notes||'';document.getElementById('expenseModal').classList.add('show');toggleExpenseAccount()}
 function closeExpense(){document.getElementById('expenseModal').classList.remove('show');editId=null}
+function findExpenseAccount(expense){
+  ensureBanks();
+  if(!expense)return null;
+  let a=null;
+  const ids=[expense.accountId,expense.bankId,expense.account,expense.paidFrom].filter(Boolean);
+  for(const id of ids){
+    a=db.banks.find(b=>String(b.id)===String(id));
+    if(a)return a;
+  }
+  const names=[expense.accountName,expense.bankName,expense.paidFromName].filter(Boolean);
+  for(const n of names){
+    a=db.banks.find(b=>String(b.name).trim().toLowerCase()===String(n).trim().toLowerCase());
+    if(a)return a;
+  }
+  const payment=String(expense.payment||'').trim().toLowerCase();
+  if(payment==='cash')return db.banks.find(b=>b.id==='cash')||null;
+  // If there is exactly one bank account, safely infer it for old UPI/Bank Transfer records.
+  const banks=db.banks.filter(b=>b.id!=='cash');
+  if((payment==='upi'||payment==='bank transfer'||payment==='debit card'||payment==='credit card')&&banks.length===1)return banks[0];
+  // Finally, match payment mode to an account name if the user named it that way.
+  return db.banks.find(b=>String(b.name).trim().toLowerCase()===payment)||null;
+}
 function saveExpense(){
   let name=document.getElementById('eName').value.trim(),amount=Number(document.getElementById('eAmount').value);
   if(!name||!Number.isFinite(amount)||amount<0){alert('Please enter expense name and valid amount.');return}
   ensureBanks();
-  const old=editId?db.expenses.find(x=>x.id===editId):null;
-  if(old && old.status==='Paid' && old.accountId){const b=db.banks.find(x=>x.id===old.accountId);if(b)b.balance+=Number(old.amount||0)}
+  const old=editId?db.expenses.find(x=>String(x.id)===String(editId)):null;
+  const oldPaid=!!old&&statusOf(old)==='Paid';
+  const oldAccount=oldPaid?findExpenseAccount(old):null;
+  // Temporarily return the old expense amount so editing can be validated against the restored balance.
+  if(oldPaid&&oldAccount)oldAccount.balance=Number(oldAccount.balance||0)+Number(old.amount||0);
+
   const status=document.getElementById('eStatus').value;
-  const accountId=status==='Paid'?(document.getElementById('eAccount').value||''):'';
-  if(status==='Paid' && accountId){const b=db.banks.find(x=>x.id===accountId);if(!b)return alert('Selected account not found.');if(Number(b.balance||0)<amount){if(old&&old.status==='Paid'&&old.accountId){const rb=db.banks.find(x=>x.id===old.accountId);if(rb)rb.balance-=Number(old.amount||0)}return alert('Insufficient available balance.')}}
-  if(status==='Paid' && accountId){db.banks.find(x=>x.id===accountId).balance-=amount}
+  let accountId=status==='Paid'?(document.getElementById('eAccount').value||''):'';
+  let account=null;
+  if(status==='Paid'){
+    account=accountId?db.banks.find(b=>String(b.id)===String(accountId)):null;
+    if(!account){
+      const draft={payment:document.getElementById('ePayment').value};
+      account=findExpenseAccount(draft);
+      if(account)accountId=account.id;
+    }
+    if(!account){
+      if(oldPaid&&oldAccount)oldAccount.balance=Number(oldAccount.balance||0)-Number(old.amount||0);
+      return alert('Select the Cash / Bank account that paid this expense.');
+    }
+    if(Number(account.balance||0)<amount){
+      if(oldPaid&&oldAccount)oldAccount.balance=Number(oldAccount.balance||0)-Number(old.amount||0);
+      return alert('Insufficient available balance in the selected account.');
+    }
+    account.balance=Number(account.balance||0)-amount;
+  }
+
   let obj={id:editId||Date.now().toString(),name,amount,category:document.getElementById('eCategory').value,person:document.getElementById('ePerson').value,date:document.getElementById('eDate').value,dueDate:document.getElementById('eDueDate').value,payment:document.getElementById('ePayment').value,status,accountId,notes:document.getElementById('eNotes').value.trim(),createdAt:old?.createdAt||new Date().toISOString()};
-  if(editId){let i=db.expenses.findIndex(x=>x.id===editId);if(i>=0)db.expenses[i]=obj}else db.expenses.push(obj);
-  closeExpense();saveDB();renderBanks();toast('Expense saved successfully')
+  if(editId){let i=db.expenses.findIndex(x=>String(x.id)===String(editId));if(i>=0)db.expenses[i]=obj}else db.expenses.push(obj);
+  closeExpense();saveDB();renderBanks();toast('Expense saved successfully');
 }
 
 function markExpensePaid(id){
-  const expense=db.expenses.find(e=>e.id===id);
+  ensureBanks();
+  const expense=db.expenses.find(e=>String(e.id)===String(id));
   if(!expense)return;
-
-  if(expense.status==="Paid"){
-    toast("Expense is already Paid.");
-    return;
-  }
-
+  if(statusOf(expense)==='Paid'){toast('Expense is already Paid.');return;}
   if(!confirm('Mark "'+expense.name+'" as Paid?'))return;
-
-  expense.status="Paid";
+  const amount=Number(expense.amount||0);
+  let account=findExpenseAccount(expense);
+  if(!account){
+    return alert('Select a Cash / Bank account by editing this expense before marking it Paid.');
+  }
+  if(Number(account.balance||0)<amount)return alert('Insufficient available balance in the selected account.');
+  account.balance=Number(account.balance||0)-amount;
+  expense.status='Paid';
+  expense.accountId=account.id;
   expense.updatedAt=new Date().toISOString();
-
   saveDB();
   refreshAll();
-  toast("Expense marked as Paid.");
+  toast('Expense marked as Paid.');
 }
 
 function deleteExpense(id){
@@ -1118,33 +1168,9 @@ function deleteExpense(id){
 
   const amount=Number(expense.amount||0);
   let returned=false;
-  let account=null;
-
-  // Paid expenses reduce an account balance. When deleted, reverse that exact
-  // reduction and return the money to the same account. Pending/Overdue
-  // expenses did not reduce an account, so their deletion changes no balance.
-  if(expense.status==='Paid' && amount>0){
-    // Current format.
-    if(expense.accountId){
-      account=db.banks.find(b=>String(b.id)===String(expense.accountId))||null;
-    }
-
-    // Compatibility with older EVR expense records that may have stored the
-    // account under a different property/name.
-    if(!account){
-      const legacyId=expense.bankId||expense.account||expense.paidFrom;
-      if(legacyId) account=db.banks.find(b=>String(b.id)===String(legacyId))||null;
-    }
-    if(!account){
-      const legacyName=expense.accountName||expense.bankName||expense.paidFromName;
-      if(legacyName) account=db.banks.find(b=>String(b.name).toLowerCase()===String(legacyName).toLowerCase())||null;
-    }
-
-    // Older records using Cash payment without an explicit account belong to Cash.
-    if(!account && String(expense.payment||'').toLowerCase()==='cash'){
-      account=db.banks.find(b=>b.id==='cash')||null;
-    }
-
+  // Only a Paid expense has reduced an account. Reverse exactly that debit.
+  if(statusOf(expense)==='Paid'&&amount>0){
+    const account=findExpenseAccount(expense);
     if(account){
       account.balance=Number(account.balance||0)+amount;
       returned=true;
@@ -1154,8 +1180,9 @@ function deleteExpense(id){
   db.expenses=db.expenses.filter(x=>String(x.id)!==String(id));
   saveDB();
   renderAll();
-  toast(returned ? 'Expense deleted — amount returned to account' : 'Expense deleted');
+  toast(returned?'Expense deleted — amount returned to account':'Expense deleted');
 }
+
 function renderExpenses(){
   let q=(document.getElementById('search')?.value||'').toLowerCase();
   let p=document.getElementById('filterPerson')?.value||'';
@@ -2139,8 +2166,9 @@ function dashboardGo(id,status){if(status){page(id);const s=document.getElementB
 // Close the hamburger menu whenever the user taps/clicks outside it.
 document.addEventListener('click',function(ev){const m=document.getElementById('menuPanel'),h=document.querySelector('.hamb');if(m&&m.classList.contains('show')&&!m.contains(ev.target)&&ev.target!==h)m.classList.remove('show')});
 
-// Swipe left/right to move between the main pages on touch devices.
-(function(){let sx=0,sy=0;const pages=['dashboard','expenses','upcoming','people','banks','reports'];document.addEventListener('touchstart',e=>{if(!e.touches[0])return;sx=e.touches[0].clientX;sy=e.touches[0].clientY},{passive:true});document.addEventListener('touchend',e=>{if(!e.changedTouches[0])return;const dx=e.changedTouches[0].clientX-sx,dy=e.changedTouches[0].clientY-sy;if(Math.abs(dx)<70||Math.abs(dx)<=Math.abs(dy))return;const active=document.querySelector('.page.active');if(!active)return;const i=pages.indexOf(active.id);const ni=dx<0?i+1:i-1;if(ni>=0&&ni<pages.length)page(pages[ni],document.querySelectorAll('.bottom-nav button')[ni])},{passive:true})})();
+// Page navigation is controlled only by the bottom/menu buttons.
+// Deliberate left/right swipe navigation is disabled so vertical scrolling
+// through long lists (especially Expenses) can never change pages.
 
 function toggleMenu(){const m=document.getElementById('menuPanel');if(m)m.classList.toggle('show')}
 function startAddBank(){
