@@ -1333,7 +1333,7 @@ function renderExpenses(){
   if(summary){
     summary.innerHTML=`
       <div class="stat"><b>Total</b><strong>${money(total)}</strong></div>
-      <div class="stat"><b>Paid</b><strong>${money(paid)}</strong></div>
+      <div class="stat dashboard-stat-click" onclick="showExpenseStatus('Paid')"><b>Paid</b><strong>${money(paid)}</strong><span class="subtle">Tap to show paid this month</span></div>
       <div class="stat dashboard-stat-click" onclick="openPendingExpenses()"><b>Unpaid / Pending</b><strong>${money(pending)}</strong><span class="subtle">Tap to view pending</span></div>
       <div class="stat dashboard-stat-click" onclick="openOverdueExpenses()"><b>Overdue</b><strong>${money(overdue)}</strong><span class="subtle">Tap to view overdue</span></div>
       <div class="stat dashboard-stat-click" onclick="dashboardGo('upcoming')"><b>Total Upcoming Expenses</b><strong>${money(pending)}</strong></div>
@@ -1368,6 +1368,16 @@ function renderExpenses(){
   const tb=document.getElementById('expenseTable');
   if(!tb)return;
   tb.innerHTML=a.length ? a.map(expenseCard).join('') : '<div class="empty">No expenses found.</div>';
+}
+
+// Keeps the selected month, year, person and category while showing one status.
+function showExpenseStatus(status){
+  const statusFilter=document.getElementById('filterStatus');
+  if(statusFilter)statusFilter.value=status;
+  renderExpenses();
+  const list=document.getElementById('expenseTable');
+  if(list)list.scrollIntoView({behavior:'smooth',block:'start'});
+  toast('Showing '+status.toLowerCase()+' expenses for the selected month');
 }
 
 
