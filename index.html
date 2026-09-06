@@ -1440,7 +1440,10 @@ function deleteCategory(n){
 
 function renderDashboard(){
   const now=today().slice(0,7);const a=getExpenses().filter(e=>(e.date||'').startsWith(now));
-  const sum=a.reduce((s,e)=>s+Number(e.amount||0),0),paid=a.filter(e=>statusOf(e)==='Paid').reduce((s,e)=>s+Number(e.amount||0),0),pending=a.filter(e=>statusOf(e)==='Pending').reduce((s,e)=>s+Number(e.amount||0),0),over=a.filter(e=>statusOf(e)==='Overdue').reduce((s,e)=>s+Number(e.amount||0),0);
+  const all=getExpenses();
+  const sum=a.reduce((s,e)=>s+Number(e.amount||0),0),paid=a.filter(e=>statusOf(e)==='Paid').reduce((s,e)=>s+Number(e.amount||0),0),pending=a.filter(e=>statusOf(e)==='Pending').reduce((s,e)=>s+Number(e.amount||0),0);
+  // Overdue is a global figure, so it must match the Overdue page and Upcoming > Overdue section.
+  const over=all.filter(e=>statusOf(e)==='Overdue').reduce((s,e)=>s+Number(e.amount||0),0);
   document.getElementById('totalAmount').textContent=money(sum);document.getElementById('paidAmount').textContent=money(paid);document.getElementById('pendingAmount').textContent=money(pending);document.getElementById('overdueAmount').textContent=money(over);document.getElementById('peopleCount').textContent=db.people.length;
   document.getElementById('recent').innerHTML=a.slice().sort((x,y)=>(y.date||'').localeCompare(x.date||'')).slice(0,8).map(e=>`<div class="manage-row"><span><b>${esc(e.name)}</b><br><small>${fmtDate(e.date)} · ${esc(e.person)}</small></span><b>${money(e.amount)}</b></div>`).join('')||'<div class="empty">No transactions this month.</div>';
   const d=new Date();d.setHours(0,0,0,0);const end=new Date(d);end.setDate(end.getDate()+7);const endS=end.toISOString().slice(0,10);
@@ -2444,21 +2447,46 @@ function updateDashboardPeriod(){
   const m=Number(document.getElementById('dashboardMonth')?.value||new Date().getMonth()+1);
   const y=Number(document.getElementById('dashboardYear')?.value||new Date().getFullYear());
   const ym=String(y)+'-'+String(m).padStart(2,'0');
-  const rows=getExpenses().filter(e=>(e.date||'').startsWith(ym)).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  const all=getExpenses();
+  const rows=all.filter(e=>(e.date||'').startsWith(ym)).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
   const total=rows.reduce((s,e)=>s+Number(e.amount||0),0);
   const paid=rows.filter(e=>statusOf(e)==='Paid').reduce((s,e)=>s+Number(e.amount||0),0);
   const pending=rows.filter(e=>statusOf(e)==='Pending').reduce((s,e)=>s+Number(e.amount||0),0);
-  const overdue=rows.filter(e=>statusOf(e)==='Overdue').reduce((s,e)=>s+Number(e.amount||0),0);
+
+  // IMPORTANT: Overdue is global (all dates), not limited to the selected dashboard month.
+  // This keeps Dashboard Overdue identical to the Overdue page and Upcoming > Overdue total.
+  const overdueRows=all.filter(e=>statusOf(e)==='Overdue');
+  const overdue=overdueRows.reduce((s,e)=>s+Number(e.amount||0),0);
+
   const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v};
-  set('totalAmount',money(total));set('paidAmount',money(paid));set('pendingAmount',money(pending));set('overdueAmount',money(overdue));set('peopleCount',db.people.length);
+  set('totalAmount',money(total));
+  set('paidAmount',money(paid));
+  set('pendingAmount',money(pending));
+  set('overdueAmount',money(overdue));
+  set('peopleCount',db.people.length);
+
   const recent=document.getElementById('recent');
   if(recent)recent.innerHTML=rows.slice(0,8).map(e=>`<div class="manage-row"><span><b>${esc(e.name)}</b><br><small>${fmtDate(e.date)} · ${esc(e.person)}</small></span><b>${money(e.amount)}</b></div>`).join('')||'<div class="empty">No transactions for this month.</div>';
-  ensureBanks();const cash=db.banks.find(b=>b.id==='cash');const bankTotal=db.banks.filter(b=>b.id!=='cash').reduce((s,b)=>s+Number(b.balance||0),0);set('dashboardCashBalance',money(cash?.balance||0));set('dashboardBankBalance',money(bankTotal));
-  const upcomingTotal=getExpenses().filter(e=>statusOf(e)==='Pending').reduce((s,e)=>s+Number(e.amount||0),0);set('dashboardUpcomingTotal',money(upcomingTotal));
-  const d=new Date();d.setHours(0,0,0,0);const end=new Date(d);end.setDate(end.getDate()+7);const endS=end.toISOString().slice(0,10);
-  const up=getExpenses().filter(e=>statusOf(e)==='Pending'&&e.dueDate&&e.dueDate>=today()&&e.dueDate<endS).sort((a,b)=>(a.dueDate||'').localeCompare(b.dueDate||''));
-  const dashUp=document.getElementById('dashboardUpcoming');if(dashUp)dashUp.innerHTML=up.map(e=>`<div class="manage-row"><span><b>${esc(e.name)}</b><br><small>Due ${fmtDate(e.dueDate)}</small></span><b>${money(e.amount)}</b></div>`).join('')||'<div class="empty">No expenses due in the next 7 days.</div>';
-  const ut=document.getElementById('upcomingTotal');if(ut)ut.textContent=up.length+' expenses · '+money(up.reduce((s,e)=>s+Number(e.amount||0),0));
+
+  ensureBanks();
+  const cash=db.banks.find(b=>b.id==='cash');
+  const bankTotal=db.banks.filter(b=>b.id!=='cash').reduce((s,b)=>s+Number(b.balance||0),0);
+  set('dashboardCashBalance',money(cash?.balance||0));
+  set('dashboardBankBalance',money(bankTotal));
+
+  const upcomingRows=all.filter(e=>statusOf(e)==='Pending');
+  const upcomingTotal=upcomingRows.reduce((s,e)=>s+Number(e.amount||0),0);
+  set('dashboardUpcomingTotal',money(upcomingTotal));
+
+  const d=new Date();d.setHours(0,0,0,0);
+  const end=new Date(d);end.setDate(end.getDate()+7);
+  const endS=end.toISOString().slice(0,10);
+  const up=all.filter(e=>statusOf(e)==='Pending'&&e.dueDate&&e.dueDate>=today()&&e.dueDate<endS)
+    .sort((a,b)=>(a.dueDate||'').localeCompare(b.dueDate||''));
+  const dashUp=document.getElementById('dashboardUpcoming');
+  if(dashUp)dashUp.innerHTML=up.map(e=>`<div class="manage-row"><span><b>${esc(e.name)}</b><br><small>Due ${fmtDate(e.dueDate)}</small></span><b>${money(e.amount)}</b></div>`).join('')||'<div class="empty">No expenses due in the next 7 days.</div>';
+  const ut=document.getElementById('upcomingTotal');
+  if(ut)ut.textContent=up.length+' expenses · '+money(up.reduce((s,e)=>s+Number(e.amount||0),0));
 }
 function initDashboardPeriod(){
   const y=document.getElementById('dashboardYear'),m=document.getElementById('dashboardMonth');if(!y||!m)return;
