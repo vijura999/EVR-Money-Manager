@@ -797,7 +797,7 @@ html,body,#application{overscroll-behavior-x:none!important;}
 <div class="stat green dashboard-stat-click" onclick="dashboardGo('expenses','Paid')" title="Open Paid Expenses"><span class="dash-icon green">✓</span><div class="dash-stat-copy"><small>Paid</small><strong id="paidAmount">₹0.00</strong><span class="subtle">This Month</span></div></div>
 <div class="stat orange dashboard-stat-click" onclick="dashboardGo('upcoming')" title="Open Upcoming Expenses"><span class="dash-icon orange">◷</span><div class="dash-stat-copy"><small>Pending</small><strong id="pendingAmount">₹0.00</strong><span class="subtle">This Month</span></div></div>
 <div class="stat red dashboard-stat-click" onclick="dashboardGo('overdue')" title="Open Overdue Expenses"><span class="dash-icon red">!</span><div class="dash-stat-copy"><small>Overdue</small><strong id="overdueAmount">₹0.00</strong><span class="subtle">Total Overdue</span></div></div>
-<div class="stat purple dashboard-stat-click" onclick="dashboardGo('people')" title="Open People"><span class="dash-icon purple">♙</span><div class="dash-stat-copy"><small>People</small><strong id="peopleCount">0</strong><span class="subtle">Members</span></div></div>
+<div class="stat purple dashboard-stat-click" onclick="dashboardGo('upcoming')" title="Open Upcoming + Overdue Expenses"><span class="dash-icon purple">↗</span><div class="dash-stat-copy"><small>Upcoming + Overdue</small><strong id="dashboardUpcomingOverdueTotal">₹0.00</strong><span class="subtle">Total Expenses</span></div></div>
 <div class="stat dashboard-stat-click" onclick="dashboardGo('banks')" title="Open Cash &amp; Banks"><span class="dash-icon blue">₹</span><div class="dash-stat-copy"><small>Cash Available</small><strong id="dashboardCashBalance">₹0.00</strong><span class="subtle">Cash Account</span></div></div>
 <div class="stat bank-stat dashboard-stat-click" onclick="dashboardGo('banks')" title="Open Cash &amp; Banks"><span class="dash-icon teal">▤</span><div class="dash-stat-copy"><small>Total Bank Balances</small><strong id="dashboardBankBalance">₹0.00</strong><span class="subtle">Bank Accounts</span></div></div>
 <div class="stat upcoming-total-stat dashboard-stat-click" onclick="dashboardGo('upcoming')" title="Open Upcoming Expenses"><span class="dash-icon orange">◷</span><div class="dash-stat-copy"><small>Total Upcoming Expenses</small><strong id="dashboardUpcomingTotal">₹0.00</strong><span class="subtle">Upcoming Expenses</span></div></div>
@@ -877,6 +877,7 @@ html,body,#application{overscroll-behavior-x:none!important;}
   <div class="stat"><small>Next Upcoming Expense</small><strong id="nextUpcomingTotal">₹0.00</strong><span id="nextUpcomingDate" class="subtle">None scheduled</span></div>
   <div class="stat"><small>Total Upcoming Expenses</small><strong id="upcomingGrandTotal">₹0.00</strong><span id="upcomingGrandCount" class="subtle">0 expenses</span></div>
   <div class="stat"><small>Total Overdue</small><strong id="upcomingOverdueTotal">₹0.00</strong><span class="subtle">All Overdue</span></div>
+  <div class="stat"><small>Total Upcoming + Overdue</small><strong id="upcomingCombinedTotal">₹0.00</strong><span id="upcomingCombinedCount" class="subtle">0 expenses</span></div>
 </div>
 <div class="grid2">
  <div class="card"><h2>Pending schedule</h2><div id="upcomingList" class="upcoming-priority-list"></div></div>
@@ -1120,6 +1121,12 @@ function today(){return new Date().toISOString().slice(0,10)}
 function fmtDate(s){if(!s)return '-';let p=s.split('-');return p.length===3?`${p[2]}-${p[1]}-${p[0]}`:s}
 function getExpenses(){return [...db.expenses].sort((a,b)=>(b.date||'').localeCompare(a.date||''))}
 function statusOf(e){if(e.status==='Paid')return 'Paid';if(e.dueDate&&e.dueDate<today())return 'Overdue';return 'Pending'}
+// Calculation rules used across the app:
+// Total = sum of transaction amounts in the selected/current transaction period.
+// Paid = statusOf(...) === 'Paid'.
+// Overdue = every unpaid expense whose due date is before today (global).
+// Upcoming = every unpaid expense with a due date of today or later (global).
+// Upcoming + Overdue = Upcoming total + Overdue total.
 function toast(t){let x=document.getElementById('toast');x.textContent=t;x.classList.add('show');setTimeout(()=>x.classList.remove('show'),2200)}
 
 function page(id,btn){document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));const t=document.getElementById(id);if(!t)return;t.classList.add('active');document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('active'));if(btn)btn.classList.add('active');if(id==='reports')renderReports();if(id==='banks')renderBanks();if(id==='upcoming'||id==='overdue')renderUpcoming();window.scrollTo(0,0)}
@@ -1444,7 +1451,10 @@ function renderDashboard(){
   const sum=a.reduce((s,e)=>s+Number(e.amount||0),0),paid=a.filter(e=>statusOf(e)==='Paid').reduce((s,e)=>s+Number(e.amount||0),0),pending=a.filter(e=>statusOf(e)==='Pending').reduce((s,e)=>s+Number(e.amount||0),0);
   // Overdue is a global figure, so it must match the Overdue page and Upcoming > Overdue section.
   const over=all.filter(e=>statusOf(e)==='Overdue').reduce((s,e)=>s+Number(e.amount||0),0);
-  document.getElementById('totalAmount').textContent=money(sum);document.getElementById('paidAmount').textContent=money(paid);document.getElementById('pendingAmount').textContent=money(pending);document.getElementById('overdueAmount').textContent=money(over);document.getElementById('peopleCount').textContent=db.people.length;
+  const upcoming=all.filter(e=>statusOf(e)==='Pending'&&e.dueDate&&e.dueDate>=today()).reduce((s,e)=>s+Number(e.amount||0),0);
+  const combined=upcoming+over;
+  document.getElementById('totalAmount').textContent=money(sum);document.getElementById('paidAmount').textContent=money(paid);document.getElementById('pendingAmount').textContent=money(pending);document.getElementById('overdueAmount').textContent=money(over);
+  const combinedEl=document.getElementById('dashboardUpcomingOverdueTotal');if(combinedEl)combinedEl.textContent=money(combined);
   document.getElementById('recent').innerHTML=a.slice().sort((x,y)=>(y.date||'').localeCompare(x.date||'')).slice(0,8).map(e=>`<div class="manage-row"><span><b>${esc(e.name)}</b><br><small>${fmtDate(e.date)} · ${esc(e.person)}</small></span><b>${money(e.amount)}</b></div>`).join('')||'<div class="empty">No transactions this month.</div>';
   const d=new Date();d.setHours(0,0,0,0);const end=new Date(d);end.setDate(end.getDate()+7);const endS=end.toISOString().slice(0,10);
   let up=getExpenses().filter(e=>statusOf(e)==='Pending'&&e.dueDate&&e.dueDate>=today()&&e.dueDate<endS).sort((x,y)=>(x.dueDate||'').localeCompare(y.dueDate||''));
@@ -1519,6 +1529,10 @@ function renderUpcoming(){
   if(grandTotal) grandTotal.textContent=money(upTotal);
   if(grandCount) grandCount.textContent=upcoming.length;
   if(overdueTotal) overdueTotal.textContent=money(ovTotal);
+  const combinedTotal=document.getElementById('upcomingCombinedTotal');
+  const combinedCount=document.getElementById('upcomingCombinedCount');
+  if(combinedTotal) combinedTotal.textContent=money(upTotal+ovTotal);
+  if(combinedCount) combinedCount.textContent=(upcoming.length+overdue.length)+" expenses · Upcoming + Overdue";
   const set=(id,value)=>{const el=document.getElementById(id);if(el)el.textContent=value;};
   set('todayPendingTotal',money(total(todayPending)));
   set('todayPendingCount',todayPending.length+' expense'+(todayPending.length===1?'':'s'));
@@ -1546,7 +1560,7 @@ function renderUpcoming(){
 function inPeriod(e,type){let d=e.date;if(!d)return false;let y=+d.slice(0,4),m=+d.slice(5,7);if(type==='daily')return d===document.getElementById('reportDate').value;if(type==='monthly')return y===+document.getElementById('reportYear').value&&m===+document.getElementById('reportMonth').value;return y===+document.getElementById('reportYear').value}
 function reportData(){return getExpenses().filter(e=>inPeriod(e,document.getElementById('reportType').value))}
 function reportTitle(){let t=document.getElementById('reportType').value;if(t==='daily')return 'Daily Report - '+fmtDate(document.getElementById('reportDate').value);if(t==='monthly')return 'Monthly Report - '+document.getElementById('reportMonth').selectedOptions[0].text+' '+document.getElementById('reportYear').value;return 'Yearly Report - '+document.getElementById('reportYear').value}
-function renderPeriodReport(){let t=document.getElementById('reportType').value;document.getElementById('reportDateBox').style.display=t==='daily'?'flex':'none';document.getElementById('reportMonthBox').style.display=t==='monthly'?'flex':'none';let a=reportData(),sum=a.reduce((s,e)=>s+e.amount,0);document.getElementById('periodReport').innerHTML=`<h3>${reportTitle()}</h3><div class="report-stats"><div class="report-stat">Total Expenses<strong>${money(sum)}</strong></div><div class="report-stat">Number of Expenses<strong>${a.length}</strong></div><div class="report-stat">Average Expense<strong>${money(a.length?sum/a.length:0)}</strong></div></div>${reportTable(a)}`}
+function renderPeriodReport(){let t=document.getElementById('reportType').value;document.getElementById('reportDateBox').style.display=t==='daily'?'flex':'none';document.getElementById('reportMonthBox').style.display=t==='monthly'?'flex':'none';let a=reportData(),sum=a.reduce((s,e)=>s+Number(e.amount||0),0);document.getElementById('periodReport').innerHTML=`<h3>${reportTitle()}</h3><div class="report-stats"><div class="report-stat">Total Expenses<strong>${money(sum)}</strong></div><div class="report-stat">Number of Expenses<strong>${a.length}</strong></div><div class="report-stat">Average Expense<strong>${money(a.length?sum/a.length:0)}</strong></div></div>${reportTable(a)}`}
 function reportTable(a){return a.length?`<div class="table-wrap"><table><thead><tr><th>Date</th><th>Expense</th><th>Amount</th><th>Category</th><th>Person</th><th>Payment</th><th>Status</th></tr></thead><tbody>${a.map(e=>`<tr><td>${fmtDate(e.date)}</td><td>${esc(e.name)}</td><td>${money(e.amount)}</td><td>${esc(e.category)}</td><td>${esc(e.person)}</td><td>${esc(e.payment)}</td><td>${statusOf(e)}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">No expense data for this period.</div>'}
 
 function filterByPersonPeriod(rows, type){
@@ -1934,8 +1948,12 @@ function saveDashboardPDF(){
   const total=rows.reduce((s,e)=>s+Number(e.amount||0),0);
   const paid=rows.filter(e=>statusOf(e)==='Paid').reduce((s,e)=>s+Number(e.amount||0),0);
   const pending=rows.filter(e=>statusOf(e)==='Pending').reduce((s,e)=>s+Number(e.amount||0),0);
-  const overdue=rows.filter(e=>statusOf(e)==='Overdue').reduce((s,e)=>s+Number(e.amount||0),0);
-  saveTablePDF({title:'VIJU MONEY MANAGER',subtitle:'Dashboard Report - '+document.getElementById('dashboardMonth')?.selectedOptions[0]?.text+' '+y,summary:[['Total Expenses',pdfMoney(total)],['Paid',pdfMoney(paid)],['Pending',pdfMoney(pending)],['Overdue',pdfMoney(overdue)]],headers:PDF_EXPENSE_HEADERS,widths:PDF_EXPENSE_WIDTHS,rows,rowValues:expensePdfValues,emptyText:'No expenses found for this period.',filename:'VIJU-MONEY-MANAGER-Dashboard.pdf'});
+  // Dashboard Overdue is a global figure, matching the live Dashboard and Upcoming page.
+  const overdueRows=getExpenses().filter(e=>statusOf(e)==='Overdue');
+  const overdue=overdueRows.reduce((s,e)=>s+Number(e.amount||0),0);
+  const upcomingRows=getExpenses().filter(e=>statusOf(e)==='Pending'&&e.dueDate&&e.dueDate>=today());
+  const upcomingTotal=upcomingRows.reduce((s,e)=>s+Number(e.amount||0),0);
+  saveTablePDF({title:'VIJU MONEY MANAGER',subtitle:'Dashboard Report - '+document.getElementById('dashboardMonth')?.selectedOptions[0]?.text+' '+y,summary:[['Period Total Expenses',pdfMoney(total)],['Period Paid',pdfMoney(paid)],['Period Pending',pdfMoney(pending)],['All Overdue',pdfMoney(overdue)],['All Upcoming + Overdue',pdfMoney(upcomingTotal+overdue)]],headers:PDF_EXPENSE_HEADERS,widths:PDF_EXPENSE_WIDTHS,rows,rowValues:expensePdfValues,emptyText:'No expenses found for this period.',filename:'VIJU-MONEY-MANAGER-Dashboard.pdf'});
 }
 
 function saveExpensesPDF(){
@@ -2203,9 +2221,11 @@ function renderDashboardForPeriod(month,year){
   const total=selected.reduce((s,e)=>s+Number(e.amount||0),0);
   const paid=selected.filter(e=>statusOf(e)==='Paid').reduce((s,e)=>s+Number(e.amount||0),0);
   const pending=selected.filter(e=>statusOf(e)==='Pending').reduce((s,e)=>s+Number(e.amount||0),0);
-  const overdue=selected.filter(e=>statusOf(e)==='Overdue').reduce((s,e)=>s+Number(e.amount||0),0);
+  // Overdue is global, matching the Dashboard card and Upcoming > Overdue.
+  const overdue=all.filter(e=>statusOf(e)==='Overdue').reduce((s,e)=>s+Number(e.amount||0),0);
 
-  const upcoming=getExpenses().filter(e=>statusOf(e)==='Pending');
+  // Upcoming uses the same due-date rule as the Upcoming page/report.
+  const upcoming=getExpenses().filter(e=>statusOf(e)==='Pending'&&e.dueDate&&e.dueDate>=today());
   const upcomingTotal=upcoming.reduce((s,e)=>s+Number(e.amount||0),0);
 
   const map={
@@ -2463,7 +2483,9 @@ function updateDashboardPeriod(){
   set('paidAmount',money(paid));
   set('pendingAmount',money(pending));
   set('overdueAmount',money(overdue));
-  set('peopleCount',db.people.length);
+  const upcomingDueRows=all.filter(e=>statusOf(e)==='Pending'&&e.dueDate&&e.dueDate>=today());
+  const upcomingDueTotal=upcomingDueRows.reduce((s,e)=>s+Number(e.amount||0),0);
+  set('dashboardUpcomingOverdueTotal',money(upcomingDueTotal+overdue));
 
   const recent=document.getElementById('recent');
   if(recent)recent.innerHTML=rows.slice(0,8).map(e=>`<div class="manage-row"><span><b>${esc(e.name)}</b><br><small>${fmtDate(e.date)} · ${esc(e.person)}</small></span><b>${money(e.amount)}</b></div>`).join('')||'<div class="empty">No transactions for this month.</div>';
@@ -2474,7 +2496,10 @@ function updateDashboardPeriod(){
   set('dashboardCashBalance',money(cash?.balance||0));
   set('dashboardBankBalance',money(bankTotal));
 
-  const upcomingRows=all.filter(e=>statusOf(e)==='Pending');
+  // Use exactly the same definition as the Upcoming page and Upcoming report:
+  // Pending + a due date of today or later. This prevents Dashboard Upcoming
+  // from including pending records that have no due date.
+  const upcomingRows=all.filter(e=>statusOf(e)==='Pending'&&e.dueDate&&e.dueDate>=today());
   const upcomingTotal=upcomingRows.reduce((s,e)=>s+Number(e.amount||0),0);
   set('dashboardUpcomingTotal',money(upcomingTotal));
 
