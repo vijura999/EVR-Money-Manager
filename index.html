@@ -1972,10 +1972,39 @@ function saveExpensesPDF(){
 }
 
 function saveUpcomingPDF(){
-  const upcoming=getExpenses().filter(e=>statusOf(e)==='Pending').sort((a,b)=>(a.dueDate||'').localeCompare(b.dueDate||''));
-  const overdue=getExpenses().filter(e=>statusOf(e)==='Overdue').sort((a,b)=>(a.dueDate||'').localeCompare(b.dueDate||''));
+  // Keep the PDF calculation identical to the Upcoming page:
+  // Upcoming = pending expenses with a due date today or later.
+  // Overdue = all expenses whose status is Overdue.
+  const todayDate=today();
+  const upcoming=getExpenses()
+    .filter(e=>statusOf(e)==='Pending' && e.dueDate && e.dueDate>=todayDate)
+    .sort((a,b)=>(a.dueDate||'').localeCompare(b.dueDate||''));
+  const overdue=getExpenses()
+    .filter(e=>statusOf(e)==='Overdue')
+    .sort((a,b)=>(a.dueDate||'').localeCompare(b.dueDate||''));
+  const upcomingTotal=upcoming.reduce((s,e)=>s+Number(e.amount||0),0);
+  const overdueTotal=overdue.reduce((s,e)=>s+Number(e.amount||0),0);
+  const combinedTotal=upcomingTotal+overdueTotal;
+  const combinedCount=upcoming.length+overdue.length;
   const all=[...upcoming,...overdue];
-  saveTablePDF({title:'VIJU MONEY MANAGER',subtitle:'Upcoming & Overdue Expenses',summary:[['Upcoming Total',pdfMoney(upcoming.reduce((s,e)=>s+Number(e.amount||0),0))],['Upcoming Count',String(upcoming.length)],['Overdue Total',pdfMoney(overdue.reduce((s,e)=>s+Number(e.amount||0),0))],['Overdue Count',String(overdue.length)]],headers:PDF_EXPENSE_HEADERS,widths:PDF_EXPENSE_WIDTHS,rows:all,rowValues:expensePdfValues,emptyText:'No upcoming or overdue expenses.',filename:'VIJU-MONEY-MANAGER-Upcoming-Overdue.pdf'});
+  saveTablePDF({
+    title:'VIJU MONEY MANAGER',
+    subtitle:'Upcoming & Overdue Expenses',
+    summary:[
+      ['Upcoming Total',pdfMoney(upcomingTotal)],
+      ['Upcoming Count',String(upcoming.length)],
+      ['Overdue Total',pdfMoney(overdueTotal)],
+      ['Overdue Count',String(overdue.length)],
+      ['Total Upcoming + Overdue',pdfMoney(combinedTotal)],
+      ['Combined Count',String(combinedCount)]
+    ],
+    headers:PDF_EXPENSE_HEADERS,
+    widths:PDF_EXPENSE_WIDTHS,
+    rows:all,
+    rowValues:expensePdfValues,
+    emptyText:'No upcoming or overdue expenses.',
+    filename:'VIJU-MONEY-MANAGER-Upcoming-Overdue.pdf'
+  });
 }
 
 function saveOverduePDF(){
