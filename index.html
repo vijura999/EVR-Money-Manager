@@ -7,6 +7,12 @@
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#061a3d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="VIJU MONEY MANAGER">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.json">
 <title>VIJU MONEY MANAGER</title>
 <style>
 *{box-sizing:border-box}html,body{margin:0;padding:0}body{font-family:Arial,Helvetica,sans-serif;background:#f4f6fa;color:#172033;padding-bottom:78px}button,input,select,textarea{font:inherit}button{cursor:pointer}.hidden{display:none!important}
@@ -2817,6 +2823,16 @@ function markExpensePaid(id){
 // Initialize the offline mirror after the document is ready.
 window.addEventListener('DOMContentLoaded',function(){syncOfflineStorageOnStartup();});
 
+</script>
+<script>
+// VIJU MONEY MANAGER — offline PWA service worker registration
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('./sw.js', {scope:'./'}).catch(function (err) {
+      console.warn('Offline service worker registration failed:', err);
+    });
+  });
+}
 </script>
 </body>
 </html>
