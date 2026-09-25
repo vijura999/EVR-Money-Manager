@@ -808,7 +808,7 @@ html,body,#application{overscroll-behavior-x:none!important;}
 <div class="stat purple dashboard-stat-click" onclick="dashboardGo('people')" title="Open People"><span class="dash-icon purple">♙</span><div class="dash-stat-copy"><small>People</small><strong id="peopleCount">0</strong><span class="subtle">Members</span></div></div>
 <div class="stat dashboard-stat-click" onclick="dashboardGo('banks')" title="Open Cash &amp; Banks"><span class="dash-icon blue">₹</span><div class="dash-stat-copy"><small>Cash Available</small><strong id="dashboardCashBalance">₹0.00</strong><span class="subtle">Cash Account</span></div></div>
 <div class="stat bank-stat dashboard-stat-click" onclick="dashboardGo('banks')" title="Open Cash &amp; Banks"><span class="dash-icon teal">▤</span><div class="dash-stat-copy"><small>Total Bank Balances</small><strong id="dashboardBankBalance">₹0.00</strong><span class="subtle">Bank Accounts</span></div></div>
-<div class="stat upcoming-total-stat dashboard-stat-click" onclick="dashboardGo('upcoming')" title="Open Upcoming Expenses"><span class="dash-icon orange">◷</span><div class="dash-stat-copy"><small>Total Upcoming Expenses</small><strong id="dashboardUpcomingTotal">₹0.00</strong><span class="subtle">Upcoming Expenses</span></div></div>
+<div class="stat upcoming-total-stat dashboard-stat-click" onclick="dashboardGo('upcoming')" title="Open Upcoming Expenses"><span class="dash-icon orange">◷</span><div class="dash-stat-copy"><small>Total Upcoming + Overdue</small><strong id="dashboardUpcomingTotal">₹0.00</strong><span class="subtle">Upcoming + Overdue</span></div></div>
 </div>
 <div class="dashboard-sections">
   <div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><h2>Latest Transactions <span class="subtle">(Current Month)</span></h2><button class="btn primary" onclick="openExpense()">+ Add Expense</button></div><div id="recent"></div></div>
@@ -2494,7 +2494,7 @@ function updateDashboardPeriod(){
   const recent=document.getElementById('recent');
   if(recent)recent.innerHTML=rows.slice(0,8).map(e=>`<div class="manage-row"><span><b>${esc(e.name)}</b><br><small>${fmtDate(e.date)} · ${esc(e.person)}</small></span><b>${money(e.amount)}</b></div>`).join('')||'<div class="empty">No transactions for this month.</div>';
   ensureBanks();const cash=db.banks.find(b=>b.id==='cash');const bankTotal=db.banks.filter(b=>b.id!=='cash').reduce((s,b)=>s+Number(b.balance||0),0);set('dashboardCashBalance',money(cash?.balance||0));set('dashboardBankBalance',money(bankTotal));
-  const upcomingTotal=getExpenses().filter(e=>statusOf(e)==='Pending').reduce((s,e)=>s+Number(e.amount||0),0);set('dashboardUpcomingTotal',money(upcomingTotal));
+  const upcomingTotal=getExpenses().filter(e=>statusOf(e)==='Pending'&&e.dueDate&&e.dueDate>=today()).reduce((s,e)=>s+Number(e.amount||0),0);const overdueTotal=getExpenses().filter(e=>statusOf(e)==='Overdue').reduce((s,e)=>s+Number(e.amount||0),0);set('dashboardUpcomingTotal',money(upcomingTotal+overdueTotal));
   const d=new Date();d.setHours(0,0,0,0);const end=new Date(d);end.setDate(end.getDate()+7);const endS=end.toISOString().slice(0,10);
   const up=getExpenses().filter(e=>statusOf(e)==='Pending'&&e.dueDate&&e.dueDate>=today()&&e.dueDate<endS).sort((a,b)=>(a.dueDate||'').localeCompare(b.dueDate||''));
   const dashUp=document.getElementById('dashboardUpcoming');if(dashUp)dashUp.innerHTML=up.map(e=>`<div class="manage-row"><span><b>${esc(e.name)}</b><br><small>Due ${fmtDate(e.dueDate)}</small></span><b>${money(e.amount)}</b></div>`).join('')||'<div class="empty">No expenses due in the next 7 days.</div>';
@@ -2697,7 +2697,7 @@ function updateDashboardPeriod(){
   const acct=getAccountTotals();
   setText('dashboardCashBalance',money(acct.cashBalance));
   setText('dashboardBankBalance',money(acct.bankBalance));
-  setText('dashboardUpcomingTotal',money(metrics.pending));
+  setText('dashboardUpcomingTotal',money(sumExpenses(metrics.upcoming)+sumExpenses(metrics.overdue)));
 
   const dashUp=document.getElementById('dashboardUpcoming');
   if(dashUp){
