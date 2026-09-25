@@ -884,6 +884,7 @@ html,body,#application{overscroll-behavior-x:none!important;}
   <div class="stat"><small>Pending Tomorrow</small><strong id="tomorrowPendingTotal">₹0.00</strong><span id="tomorrowPendingCount" class="subtle">0 expenses</span></div>
   <div class="stat"><small>Next Upcoming Expense</small><strong id="nextUpcomingTotal">₹0.00</strong><span id="nextUpcomingDate" class="subtle">None scheduled</span></div>
   <div class="stat"><small>Total Upcoming Expenses</small><strong id="upcomingGrandTotal">₹0.00</strong><span id="upcomingGrandCount" class="subtle">0 expenses</span></div>
+  <div class="stat"><small>Total Expenses</small><strong id="upcomingAllExpensesTotal">₹0.00</strong><span id="upcomingAllExpensesCount" class="subtle">0 expenses recorded</span></div>
   <div class="stat"><small>Total Overdue</small><strong id="upcomingOverdueTotal">₹0.00</strong><span class="subtle">All Overdue</span></div>
 </div>
 <div class="grid2">
@@ -2791,8 +2792,13 @@ function renderUpcoming(){
   const laterPending=nextDate?futurePending.filter(e=>dueKey(e)>nextDate):[];
   const total=rows=>sumExpenses(rows);
   const block=(title,kind,rows,empty)=>`<section class="upcoming-priority-block"><div class="upcoming-priority-title ${kind}"><span>${title}</span><span class="upcoming-date-tag">${rows.length?rows.length+' expense'+(rows.length===1?'':'s'):''}</span></div>${rows.map(upcomingExpenseCard).join('')||'<div class="upcoming-priority-empty">'+empty+'</div>'}</section>`;
+  // Upcoming total is calculated from the exact rows shown in the Upcoming schedule.
+  // Total Expenses is calculated independently from the complete backup dataset.
+  const allExpenses=getExpenses();
   setText('upcomingGrandTotal',money(total(upcoming)));
-  setText('upcomingGrandCount',upcoming.length);
+  setText('upcomingGrandCount',upcoming.length+' expense'+(upcoming.length===1?'':'s'));
+  setText('upcomingAllExpensesTotal',money(total(allExpenses)));
+  setText('upcomingAllExpensesCount',allExpenses.length+' expense'+(allExpenses.length===1?'':'s')+' recorded');
   setText('upcomingOverdueTotal',money(total(overdue)));
   setText('todayPendingTotal',money(total(todayPending)));
   setText('todayPendingCount',todayPending.length+' expense'+(todayPending.length===1?'':'s'));
