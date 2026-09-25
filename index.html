@@ -1321,10 +1321,22 @@ function renderExpenses(){
   // selected transaction month. Pending means due today or later, and is
   // always ordered from today into the future on the Upcoming page.
   const allExpenses=getExpenses();
+
+  // Person / category / search filters apply to all expense-page figures and lists.
+  // Month/year still controls the transaction period shown in the main list.
+  const filterScope=e=>{
+    const haystack=[e.name,e.notes,e.category,e.person,e.payment,e.date,e.dueDate,statusOf(e)]
+      .filter(v=>v!==undefined&&v!==null).join(' ').toLowerCase();
+    return (!q||haystack.includes(q)) &&
+      (!p||e.person===p) &&
+      (!c||e.category===c);
+  };
+
+  const scopedExpenses=allExpenses.filter(filterScope);
   const todayDate=today();
-  const pendingRows=allExpenses.filter(e=>statusOf(e)==='Pending' && e.dueDate && e.dueDate>=todayDate)
+  const pendingRows=scopedExpenses.filter(e=>statusOf(e)==='Pending' && e.dueDate && e.dueDate>=todayDate)
     .sort((x,y)=>(x.dueDate||'').localeCompare(y.dueDate||''));
-  const overdueRows=allExpenses.filter(e=>statusOf(e)==='Overdue')
+  const overdueRows=scopedExpenses.filter(e=>statusOf(e)==='Overdue')
     .sort((x,y)=>(x.dueDate||'').localeCompare(y.dueDate||''));
   const pending=pendingRows.reduce((s,e)=>s+Number(e.amount||0),0);
   const overdue=overdueRows.reduce((s,e)=>s+Number(e.amount||0),0);
