@@ -2910,8 +2910,8 @@ function renderExpenses(){
         <span class="subtle">Filtered overdue</span>
       </div>
       <div class="stat dashboard-stat-click" onclick="dashboardGo('upcoming')">
-        <b>Total Upcoming Expenses</b><strong>${money(upcomingTotal)}</strong>
-        <span class="subtle">Filtered upcoming</span>
+        <b>Total Upcoming Expenses</b><strong>${money(upcomingTotal+overdueTotal)}</strong>
+        <span class="subtle">Pending / Upcoming + Overdue</span>
       </div>
       <div class="stat">
         <b>Expenses</b><strong>${monthRows.length}</strong>
