@@ -2742,9 +2742,11 @@ function renderExpenses(){
     const hay=[e.name,e.notes,e.category,e.person,e.payment,e.date,e.dueDate,statusOf(e)].filter(v=>v!==undefined&&v!==null).join(' ').toLowerCase();
     return dateKey(e).startsWith(ym)&&(!q||hay.includes(q))&&(!p||e.person===p)&&(!c||e.category===c)&&(!st||statusOf(e)===st);
   });
-  const periodTotal=sumExpenses(a);
-  const periodPaid=sumExpenses(a.filter(e=>statusOf(e)==='Paid'));
+  // Summary totals are based on the selected month/year, not the search/person/category/status filters.
+  // This keeps the Page 2 cards stable while filters only change the transaction list.
   const metrics=getExpenseMetrics(selectedMonth,selectedYear);
+  const periodTotal=metrics.total;
+  const periodPaid=metrics.paid;
   const upcoming=metrics.upcoming;
   const overdue=metrics.overdueRows;
   const tomorrowDate=new Date(today()+'T12:00:00');tomorrowDate.setDate(tomorrowDate.getDate()+1);
