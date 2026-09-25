@@ -808,7 +808,7 @@ html,body,#application{overscroll-behavior-x:none!important;}
 <div class="stat purple dashboard-stat-click" onclick="dashboardGo('people')" title="Open People"><span class="dash-icon purple">♙</span><div class="dash-stat-copy"><small>People</small><strong id="peopleCount">0</strong><span class="subtle">Members</span></div></div>
 <div class="stat dashboard-stat-click" onclick="dashboardGo('banks')" title="Open Cash &amp; Banks"><span class="dash-icon blue">₹</span><div class="dash-stat-copy"><small>Cash Available</small><strong id="dashboardCashBalance">₹0.00</strong><span class="subtle">Cash Account</span></div></div>
 <div class="stat bank-stat dashboard-stat-click" onclick="dashboardGo('banks')" title="Open Cash &amp; Banks"><span class="dash-icon teal">▤</span><div class="dash-stat-copy"><small>Total Bank Balances</small><strong id="dashboardBankBalance">₹0.00</strong><span class="subtle">Bank Accounts</span></div></div>
-<div class="stat upcoming-total-stat dashboard-stat-click" onclick="dashboardGo('upcoming')" title="Open Upcoming Expenses"><span class="dash-icon orange">◷</span><div class="dash-stat-copy"><small>Total Upcoming Expenses</small><strong id="dashboardUpcomingTotal">₹0.00</strong><span class="subtle">Upcoming Expenses</span></div></div>
+<div class="stat upcoming-total-stat dashboard-stat-click" onclick="dashboardGo('upcoming')" title="Open Upcoming Expenses"><span class="dash-icon orange">◷</span><div class="dash-stat-copy"><small>Total Upcoming + Overdue</small><strong id="dashboardUpcomingTotal">₹0.00</strong><span class="subtle">Upcoming + Overdue</span></div></div>
 </div>
 <div class="dashboard-sections">
   <div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><h2>Latest Transactions <span class="subtle">(Current Month)</span></h2><button class="btn primary" onclick="openExpense()">+ Add Expense</button></div><div id="recent"></div></div>
@@ -884,6 +884,8 @@ html,body,#application{overscroll-behavior-x:none!important;}
   <div class="stat"><small>Pending Tomorrow</small><strong id="tomorrowPendingTotal">₹0.00</strong><span id="tomorrowPendingCount" class="subtle">0 expenses</span></div>
   <div class="stat"><small>Next Upcoming Expense</small><strong id="nextUpcomingTotal">₹0.00</strong><span id="nextUpcomingDate" class="subtle">None scheduled</span></div>
   <div class="stat"><small>Total Upcoming Expenses</small><strong id="upcomingGrandTotal">₹0.00</strong><span id="upcomingGrandCount" class="subtle">0 expenses</span></div>
+  <div class="stat"><small>Total Expenses</small><strong id="upcomingAllExpensesTotal">₹0.00</strong><span id="upcomingAllExpensesCount" class="subtle">0 expenses recorded</span></div>
+  <div class="stat"><small>Total Pending + Overdue</small><strong id="upcomingPendingOverdueTotal">₹0.00</strong><span id="upcomingPendingOverdueCount" class="subtle">0 expenses</span></div>
   <div class="stat"><small>Total Overdue</small><strong id="upcomingOverdueTotal">₹0.00</strong><span class="subtle">All Overdue</span></div>
 </div>
 <div class="grid2">
@@ -1319,8 +1321,19 @@ function renderExpenses(){
   // selected transaction month. Pending means due today or later, and is
   // always ordered from today into the future on the Upcoming page.
   const allExpenses=getExpenses();
+
+  // Apply the Expenses-page filters to the status/summary cards too.
+  const summaryScope=e=>{
+    const haystack=[e.name,e.notes,e.category,e.person,e.payment,e.date,e.dueDate,statusOf(e)]
+      .filter(v=>v!==undefined&&v!==null).join(' ').toLowerCase();
+    return (!q||haystack.includes(q)) &&
+      (!p||e.person===p) &&
+      (!c||e.category===c);
+  };
+
+  const scopedExpenses=allExpenses.filter(summaryScope);
   const todayDate=today();
-  const pendingRows=allExpenses.filter(e=>statusOf(e)==='Pending' && e.dueDate && e.dueDate>=todayDate)
+  const pendingRows=scopedExpenses.filter(e=>statusOf(e)==='Pending' && e.dueDate && e.dueDate>=todayDate)
     .sort((x,y)=>(x.dueDate||'').localeCompare(y.dueDate||''));
   const overdueRows=allExpenses.filter(e=>statusOf(e)==='Overdue')
     .sort((x,y)=>(x.dueDate||'').localeCompare(y.dueDate||''));
@@ -1516,6 +1529,10 @@ function renderUpcoming(){
 
   const upTotal=total(upcoming);
   const ovTotal=total(overdue);
+  // Combined pending + overdue amount. Pending includes every Pending expense,
+  // while the Upcoming card above remains limited to expenses with a future due date.
+  const pendingOverdue=[...upcoming,...overdue];
+  const pendingOverdueTotal=upTotal+ovTotal;
 
   // Update the Upcoming Expenses summary cards at the top of the page.
   const grandTotal=document.getElementById('upcomingGrandTotal');
@@ -1524,6 +1541,10 @@ function renderUpcoming(){
   if(grandTotal) grandTotal.textContent=money(upTotal);
   if(grandCount) grandCount.textContent=upcoming.length;
   if(overdueTotal) overdueTotal.textContent=money(ovTotal);
+  const pendingOverdueTotalEl=document.getElementById('upcomingPendingOverdueTotal');
+  const pendingOverdueCountEl=document.getElementById('upcomingPendingOverdueCount');
+  if(pendingOverdueTotalEl) pendingOverdueTotalEl.textContent=money(pendingOverdueTotal);
+  if(pendingOverdueCountEl) pendingOverdueCountEl.textContent=pendingOverdue.length+' expenses';
   const set=(id,value)=>{const el=document.getElementById(id);if(el)el.textContent=value;};
   set('todayPendingTotal',money(total(todayPending)));
   set('todayPendingCount',todayPending.length+' expense'+(todayPending.length===1?'':'s'));
@@ -1959,10 +1980,32 @@ function saveExpensesPDF(){
 }
 
 function saveUpcomingPDF(){
-  const upcoming=getExpenses().filter(e=>statusOf(e)==='Pending').sort((a,b)=>(a.dueDate||'').localeCompare(b.dueDate||''));
-  const overdue=getExpenses().filter(e=>statusOf(e)==='Overdue').sort((a,b)=>(a.dueDate||'').localeCompare(b.dueDate||''));
+  // Export exactly the same Upcoming and Overdue groups shown in the app.
+  // Upcoming = pending expenses with a due date today or later; Overdue = all overdue.
+  const upcoming=getUpcomingExpenses().slice().sort((a,b)=>dueKey(a).localeCompare(dueKey(b)));
+  const overdue=getOverdueExpenses().slice().sort((a,b)=>dueKey(a).localeCompare(dueKey(b)));
+  const upcomingTotal=upcoming.reduce((s,e)=>s+expenseAmount(e),0);
+  const overdueTotal=overdue.reduce((s,e)=>s+expenseAmount(e),0);
+  const combinedTotal=upcomingTotal+overdueTotal;
   const all=[...upcoming,...overdue];
-  saveTablePDF({title:'VIJU MONEY MANAGER',subtitle:'Upcoming & Overdue Expenses',summary:[['Upcoming Total',pdfMoney(upcoming.reduce((s,e)=>s+Number(e.amount||0),0))],['Upcoming Count',String(upcoming.length)],['Overdue Total',pdfMoney(overdue.reduce((s,e)=>s+Number(e.amount||0),0))],['Overdue Count',String(overdue.length)]],headers:PDF_EXPENSE_HEADERS,widths:PDF_EXPENSE_WIDTHS,rows:all,rowValues:expensePdfValues,emptyText:'No upcoming or overdue expenses.',filename:'VIJU-MONEY-MANAGER-Upcoming-Overdue.pdf'});
+  saveTablePDF({
+    title:'VIJU MONEY MANAGER',
+    subtitle:'Upcoming & Overdue Expenses',
+    summary:[
+      ['Upcoming Total',pdfMoney(upcomingTotal)],
+      ['Upcoming Count',String(upcoming.length)],
+      ['Overdue Total',pdfMoney(overdueTotal)],
+      ['Overdue Count',String(overdue.length)],
+      ['Total Upcoming + Overdue',pdfMoney(combinedTotal)],
+      ['Combined Count',String(all.length)]
+    ],
+    headers:PDF_EXPENSE_HEADERS,
+    widths:PDF_EXPENSE_WIDTHS,
+    rows:all,
+    rowValues:expensePdfValues,
+    emptyText:'No upcoming or overdue expenses.',
+    filename:'VIJU-MONEY-MANAGER-Upcoming-Overdue.pdf'
+  });
 }
 
 function saveOverduePDF(){
@@ -2064,7 +2107,84 @@ function exportJSON(){
   }
 }
 
-function importJSON(){const input=document.getElementById('importFile');if(!input?.files?.[0])return alert('Please choose a JSON backup file first.');const reader=new FileReader();reader.onload=function(){try{let raw=JSON.parse(String(reader.result).replace(/^\uFEFF/,''));let source=raw;for(const k of ['data','backup','database','db','payload','state'])if(source&&source[k]&&typeof source[k]==='object'&&(source[k].expenses||source[k].people||source[k].banks||source[k].accounts)){source=source[k];break}const expenses=Array.isArray(source.expenses)?source.expenses:(Array.isArray(source.items)?source.items:[]);if(!expenses.length&&!Array.isArray(source.banks)&&!Array.isArray(source.accounts))throw new Error('Invalid backup');db={expenses,people:Array.isArray(source.people)?source.people:['Me'],categories:Array.isArray(source.categories)?source.categories:[...DEFAULT_CATS],banks:Array.isArray(source.banks)?source.banks:(Array.isArray(source.accounts)?source.accounts:[{id:'cash',name:'Cash',balance:0,openingBalance:0}]),bankTransactions:Array.isArray(source.bankTransactions)?source.bankTransactions:(Array.isArray(source.transactions)?source.transactions:[]),version:4};ensureBanks();saveDB();input.value='';alert('Full backup imported successfully.');}catch(e){console.error(e);alert('Invalid or unsupported VIJU MONEY MANAGER backup JSON file.');}};reader.readAsText(input.files[0])}
+function importJSON(){
+  const input=document.getElementById('importFile');
+  if(!input?.files?.[0])return alert('Please choose a JSON backup file first.');
+
+  const reader=new FileReader();
+
+  reader.onload=function(){
+    try{
+      const text=String(reader.result||'').replace(/^\uFEFF/,'').trim();
+      if(!text)throw new Error('Backup file is empty.');
+
+      const raw=JSON.parse(text);
+      let source=raw;
+
+      // Current backups are wrapped as {app, version, exportedAt, data:{...}}.
+      // Also accept the older wrapper names used by previous app versions.
+      for(const k of ['data','backup','database','db','payload','state']){
+        if(source&&source[k]&&typeof source[k]==='object'&&!Array.isArray(source[k])&&(
+          Array.isArray(source[k].expenses) ||
+          Array.isArray(source[k].items) ||
+          Array.isArray(source[k].people) ||
+          Array.isArray(source[k].banks) ||
+          Array.isArray(source[k].accounts)
+        )){
+          source=source[k];
+          break;
+        }
+      }
+
+      if(!source||typeof source!=='object'||Array.isArray(source)){
+        throw new Error('Backup root is not an object.');
+      }
+
+      const expenses=Array.isArray(source.expenses)
+        ? source.expenses
+        : (Array.isArray(source.items)?source.items:null);
+
+      const people=Array.isArray(source.people)?source.people:null;
+      const categories=Array.isArray(source.categories)?source.categories:null;
+      const banks=Array.isArray(source.banks)
+        ? source.banks
+        : (Array.isArray(source.accounts)?source.accounts:null);
+
+      const bankTransactions=Array.isArray(source.bankTransactions)
+        ? source.bankTransactions
+        : (Array.isArray(source.transactions)?source.transactions:[]);
+
+      if(expenses===null && people===null && categories===null && banks===null &&
+         !Array.isArray(source.bankTransactions) && !Array.isArray(source.transactions)){
+        throw new Error('No supported VIJU MONEY MANAGER backup data found.');
+      }
+
+      db={
+        expenses:expenses||[],
+        people:people||['Me'],
+        categories:categories||[...DEFAULT_CATS],
+        banks:banks||[{id:'cash',name:'Cash',balance:0,openingBalance:0}],
+        bankTransactions:bankTransactions,
+        version:4
+      };
+
+      ensureBanks();
+      saveDB();
+      input.value='';
+      renderAll();
+      alert('Full backup imported successfully.');
+    }catch(e){
+      console.error('VIJU MONEY MANAGER import error:',e);
+      alert('Invalid or unsupported VIJU MONEY MANAGER backup JSON file.');
+    }
+  };
+
+  reader.onerror=function(){
+    alert('Could not read the selected backup JSON file.');
+  };
+
+  reader.readAsText(input.files[0]);
+}
 function clearAll(){
   if(!confirm(
     "This will permanently delete all local expenses, people and categories. Continue?"
@@ -2462,7 +2582,7 @@ function updateDashboardPeriod(){
   const recent=document.getElementById('recent');
   if(recent)recent.innerHTML=rows.slice(0,8).map(e=>`<div class="manage-row"><span><b>${esc(e.name)}</b><br><small>${fmtDate(e.date)} · ${esc(e.person)}</small></span><b>${money(e.amount)}</b></div>`).join('')||'<div class="empty">No transactions for this month.</div>';
   ensureBanks();const cash=db.banks.find(b=>b.id==='cash');const bankTotal=db.banks.filter(b=>b.id!=='cash').reduce((s,b)=>s+Number(b.balance||0),0);set('dashboardCashBalance',money(cash?.balance||0));set('dashboardBankBalance',money(bankTotal));
-  const upcomingTotal=getExpenses().filter(e=>statusOf(e)==='Pending').reduce((s,e)=>s+Number(e.amount||0),0);set('dashboardUpcomingTotal',money(upcomingTotal));
+  const upcomingTotal=getExpenses().filter(e=>statusOf(e)==='Pending'&&e.dueDate&&e.dueDate>=today()).reduce((s,e)=>s+Number(e.amount||0),0);const overdueTotal=getExpenses().filter(e=>statusOf(e)==='Overdue').reduce((s,e)=>s+Number(e.amount||0),0);set('dashboardUpcomingTotal',money(upcomingTotal+overdueTotal));
   const d=new Date();d.setHours(0,0,0,0);const end=new Date(d);end.setDate(end.getDate()+7);const endS=end.toISOString().slice(0,10);
   const up=getExpenses().filter(e=>statusOf(e)==='Pending'&&e.dueDate&&e.dueDate>=today()&&e.dueDate<endS).sort((a,b)=>(a.dueDate||'').localeCompare(b.dueDate||''));
   const dashUp=document.getElementById('dashboardUpcoming');if(dashUp)dashUp.innerHTML=up.map(e=>`<div class="manage-row"><span><b>${esc(e.name)}</b><br><small>Due ${fmtDate(e.dueDate)}</small></span><b>${money(e.amount)}</b></div>`).join('')||'<div class="empty">No expenses due in the next 7 days.</div>';
@@ -2665,7 +2785,7 @@ function updateDashboardPeriod(){
   const acct=getAccountTotals();
   setText('dashboardCashBalance',money(acct.cashBalance));
   setText('dashboardBankBalance',money(acct.bankBalance));
-  setText('dashboardUpcomingTotal',money(metrics.pending));
+  setText('dashboardUpcomingTotal',money(sumExpenses(metrics.upcoming)+metrics.overdue));
 
   const dashUp=document.getElementById('dashboardUpcoming');
   if(dashUp){
@@ -2719,9 +2839,11 @@ function renderExpenses(){
     const hay=[e.name,e.notes,e.category,e.person,e.payment,e.date,e.dueDate,statusOf(e)].filter(v=>v!==undefined&&v!==null).join(' ').toLowerCase();
     return dateKey(e).startsWith(ym)&&(!q||hay.includes(q))&&(!p||e.person===p)&&(!c||e.category===c)&&(!st||statusOf(e)===st);
   });
-  const periodTotal=sumExpenses(a);
-  const periodPaid=sumExpenses(a.filter(e=>statusOf(e)==='Paid'));
+  // Summary totals are based on the selected month/year, not the search/person/category/status filters.
+  // This keeps the Page 2 cards stable while filters only change the transaction list.
   const metrics=getExpenseMetrics(selectedMonth,selectedYear);
+  const periodTotal=metrics.total;
+  const periodPaid=metrics.paid;
   const upcoming=metrics.upcoming;
   const overdue=metrics.overdueRows;
   const tomorrowDate=new Date(today()+'T12:00:00');tomorrowDate.setDate(tomorrowDate.getDate()+1);
@@ -2769,8 +2891,16 @@ function renderUpcoming(){
   const laterPending=nextDate?futurePending.filter(e=>dueKey(e)>nextDate):[];
   const total=rows=>sumExpenses(rows);
   const block=(title,kind,rows,empty)=>`<section class="upcoming-priority-block"><div class="upcoming-priority-title ${kind}"><span>${title}</span><span class="upcoming-date-tag">${rows.length?rows.length+' expense'+(rows.length===1?'':'s'):''}</span></div>${rows.map(upcomingExpenseCard).join('')||'<div class="upcoming-priority-empty">'+empty+'</div>'}</section>`;
+  // Summary totals are calculated from the same global expense data used by the app.
+  const allExpenses=getExpenses();
+  const pendingOverdue=[...upcoming,...overdue];
+  const pendingOverdueTotal=total(upcoming)+total(overdue);
   setText('upcomingGrandTotal',money(total(upcoming)));
-  setText('upcomingGrandCount',upcoming.length);
+  setText('upcomingGrandCount',upcoming.length+' expense'+(upcoming.length===1?'':'s'));
+  setText('upcomingAllExpensesTotal',money(total(allExpenses)));
+  setText('upcomingAllExpensesCount',allExpenses.length+' expense'+(allExpenses.length===1?'':'s')+' recorded');
+  setText('upcomingPendingOverdueTotal',money(pendingOverdueTotal));
+  setText('upcomingPendingOverdueCount',pendingOverdue.length+' expense'+(pendingOverdue.length===1?'':'s'));
   setText('upcomingOverdueTotal',money(total(overdue)));
   setText('todayPendingTotal',money(total(todayPending)));
   setText('todayPendingCount',todayPending.length+' expense'+(todayPending.length===1?'':'s'));
