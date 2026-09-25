@@ -1520,9 +1520,8 @@ function renderUpcoming(){
   const ovTotal=total(overdue);
   // Combined pending + overdue amount. Pending includes every Pending expense,
   // while the Upcoming card above remains limited to expenses with a future due date.
-  const allPending=all.filter(e=>statusOf(e)==='Pending');
-  const pendingOverdue=[...allPending,...overdue];
-  const pendingOverdueTotal=total(allPending)+ovTotal;
+  const pendingOverdue=[...upcoming,...overdue];
+  const pendingOverdueTotal=upTotal+ovTotal;
 
   // Update the Upcoming Expenses summary cards at the top of the page.
   const grandTotal=document.getElementById('upcomingGrandTotal');
@@ -2806,9 +2805,8 @@ function renderUpcoming(){
   const block=(title,kind,rows,empty)=>`<section class="upcoming-priority-block"><div class="upcoming-priority-title ${kind}"><span>${title}</span><span class="upcoming-date-tag">${rows.length?rows.length+' expense'+(rows.length===1?'':'s'):''}</span></div>${rows.map(upcomingExpenseCard).join('')||'<div class="upcoming-priority-empty">'+empty+'</div>'}</section>`;
   // Summary totals are calculated from the same global expense data used by the app.
   const allExpenses=getExpenses();
-  const allPending=allExpenses.filter(e=>statusOf(e)==='Pending');
-  const pendingOverdue=[...allPending,...overdue];
-  const pendingOverdueTotal=total(allPending)+total(overdue);
+  const pendingOverdue=[...upcoming,...overdue];
+  const pendingOverdueTotal=total(upcoming)+total(overdue);
   setText('upcomingGrandTotal',money(total(upcoming)));
   setText('upcomingGrandCount',upcoming.length+' expense'+(upcoming.length===1?'':'s'));
   setText('upcomingAllExpensesTotal',money(total(allExpenses)));
