@@ -1,4 +1,4 @@
-const CACHE_NAME = "viju-money-manager-v2";
+const CACHE_NAME = "viju-money-manager-v3";
 
 const APP_FILES = [
   "./",
@@ -10,7 +10,6 @@ const APP_FILES = [
   "./favicon-32.png"
 ];
 
-// Install the new service worker
 self.addEventListener("install", event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
@@ -19,7 +18,6 @@ self.addEventListener("install", event => {
   );
 });
 
-// Activate the new service worker
 self.addEventListener("activate", event => {
   event.waitUntil(
     caches.keys().then(keys =>
@@ -32,14 +30,12 @@ self.addEventListener("activate", event => {
   );
 });
 
-// Network first for HTML files so the latest app is loaded.
-// Cache fallback keeps the app working offline.
 self.addEventListener("fetch", event => {
   if (event.request.method !== "GET") return;
 
   const url = new URL(event.request.url);
 
-  // Always try the network first for HTML/navigation.
+  // Network-first for HTML/navigation
   if (
     event.request.mode === "navigate" ||
     url.pathname.endsWith(".html") ||
@@ -50,44 +46,50 @@ self.addEventListener("fetch", event => {
         .then(response => {
           if (response && response.ok) {
             const copy = response.clone();
+
             caches.open(CACHE_NAME).then(cache => {
               cache.put(event.request, copy);
             });
           }
+
           return response;
         })
         .catch(() => {
           return caches.match(event.request)
-            .then(cached => cached || caches.match("./index.html"));
+            .then(cached =>
+              cached || caches.match("./index.html")
+            );
         })
     );
+
     return;
   }
 
-  // Other files: cache first, then network.
+  // Cache-first for other files
   event.respondWith(
-    caches.match(event.request).then(cachedResponse => {
-      if (cachedResponse) {
-        return cachedResponse;
-      }
+    caches.match(event.request)
+      .then(cachedResponse => {
+        if (cachedResponse) {
+          return cachedResponse;
+        }
 
-      return fetch(event.request)
-        .then(response => {
-          if (response && response.ok) {
-            const copy = response.clone();
+        return fetch(event.request)
+          .then(response => {
+            if (response && response.ok) {
+              const copy = response.clone();
 
-            caches.open(CACHE_NAME).then(cache => {
-              cache.put(event.request, copy);
-            });
-          }
+              caches.open(CACHE_NAME).then(cache => {
+                cache.put(event.request, copy);
+              });
+            }
 
-          return response;
-        })
-        .catch(() => {
-          if (event.request.mode === "navigate") {
-            return caches.match("./index.html");
-          }
-        });
-    })
+            return response;
+          })
+          .catch(() => {
+            if (event.request.mode === "navigate") {
+              return caches.match("./index.html");
+            }
+          });
+      })
   );
 });
