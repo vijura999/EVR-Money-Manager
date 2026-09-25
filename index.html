@@ -885,6 +885,7 @@ html,body,#application{overscroll-behavior-x:none!important;}
   <div class="stat"><small>Next Upcoming Expense</small><strong id="nextUpcomingTotal">₹0.00</strong><span id="nextUpcomingDate" class="subtle">None scheduled</span></div>
   <div class="stat"><small>Total Upcoming Expenses</small><strong id="upcomingGrandTotal">₹0.00</strong><span id="upcomingGrandCount" class="subtle">0 expenses</span></div>
   <div class="stat"><small>Total Expenses</small><strong id="upcomingAllExpensesTotal">₹0.00</strong><span id="upcomingAllExpensesCount" class="subtle">0 expenses recorded</span></div>
+  <div class="stat"><small>Total Pending + Overdue</small><strong id="upcomingPendingOverdueTotal">₹0.00</strong><span id="upcomingPendingOverdueCount" class="subtle">0 expenses</span></div>
   <div class="stat"><small>Total Overdue</small><strong id="upcomingOverdueTotal">₹0.00</strong><span class="subtle">All Overdue</span></div>
 </div>
 <div class="grid2">
@@ -1517,6 +1518,11 @@ function renderUpcoming(){
 
   const upTotal=total(upcoming);
   const ovTotal=total(overdue);
+  // Combined pending + overdue amount. Pending includes every Pending expense,
+  // while the Upcoming card above remains limited to expenses with a future due date.
+  const allPending=all.filter(e=>statusOf(e)==='Pending');
+  const pendingOverdue=[...allPending,...overdue];
+  const pendingOverdueTotal=total(allPending)+ovTotal;
 
   // Update the Upcoming Expenses summary cards at the top of the page.
   const grandTotal=document.getElementById('upcomingGrandTotal');
@@ -1525,6 +1531,10 @@ function renderUpcoming(){
   if(grandTotal) grandTotal.textContent=money(upTotal);
   if(grandCount) grandCount.textContent=upcoming.length;
   if(overdueTotal) overdueTotal.textContent=money(ovTotal);
+  const pendingOverdueTotalEl=document.getElementById('upcomingPendingOverdueTotal');
+  const pendingOverdueCountEl=document.getElementById('upcomingPendingOverdueCount');
+  if(pendingOverdueTotalEl) pendingOverdueTotalEl.textContent=money(pendingOverdueTotal);
+  if(pendingOverdueCountEl) pendingOverdueCountEl.textContent=pendingOverdue.length+' expenses';
   const set=(id,value)=>{const el=document.getElementById(id);if(el)el.textContent=value;};
   set('todayPendingTotal',money(total(todayPending)));
   set('todayPendingCount',todayPending.length+' expense'+(todayPending.length===1?'':'s'));
