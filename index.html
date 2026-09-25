@@ -2096,7 +2096,81 @@ function exportJSON(){
   }
 }
 
-function importJSON(){const input=document.getElementById('importFile');if(!input?.files?.[0])return alert('Please choose a JSON backup file first.');const reader=new FileReader();reader.onload=function(){try{let raw=JSON.parse(String(reader.result).replace(/^\uFEFF/,''));let source=raw;for(const k of ['data','backup','database','db','payload','state'])if(source&&source[k]&&typeof source[k]==='object'&&(source[k].expenses||source[k].people||source[k].banks||source[k].accounts)){source=source[k];break}const expenses=Array.isArray(source.expenses)?source.expenses:(Array.isArray(source.items)?source.items:[]);if(!expenses.length&&!Array.isArray(source.banks)&&!Array.isArray(source.accounts))throw new Error('Invalid backup');db={expenses,people:Array.isArray(source.people)?source.people:['Me'],categories:Array.isArray(source.categories)?source.categories:[...DEFAULT_CATS],banks:Array.isArray(source.banks)?source.banks:(Array.isArray(source.accounts)?source.accounts:[{id:'cash',name:'Cash',balance:0,openingBalance:0}]),bankTransactions:Array.isArray(source.bankTransactions)?source.bankTransactions:(Array.isArray(source.transactions)?source.transactions:[]),version:4};ensureBanks();saveDB();input.value='';alert('Full backup imported successfully.');}catch(e){console.error(e);alert('Invalid or unsupported VIJU MONEY MANAGER backup JSON file.');}};reader.readAsText(input.files[0])}
+function importJSON(){
+  const input=document.getElementById('importFile');
+  if(!input?.files?.[0])return alert('Please choose a JSON backup file first.');
+
+  const reader=new FileReader();
+
+  reader.onload=function(){
+    try{
+      const text=String(reader.result||'').replace(/^\uFEFF/,'').trim();
+      if(!text)throw new Error('Backup file is empty.');
+
+      const raw=JSON.parse(text);
+      let source=raw;
+
+      // Accept the current VIJU backup format and older wrapped formats.
+      for(const k of ['data','backup','database','db','payload','state']){
+        if(source&&source[k]&&typeof source[k]==='object'&&(
+          Array.isArray(source[k].expenses) ||
+          Array.isArray(source[k].items) ||
+          Array.isArray(source[k].people) ||
+          Array.isArray(source[k].banks) ||
+          Array.isArray(source[k].accounts)
+        )){
+          source=source[k];
+          break;
+        }
+      }
+
+      if(!source || typeof source!=='object' || Array.isArray(source)){
+        throw new Error('Backup root is not an object.');
+      }
+
+      const expenses=Array.isArray(source.expenses)
+        ? source.expenses
+        : (Array.isArray(source.items)?source.items:null);
+
+      const people=Array.isArray(source.people)?source.people:null;
+      const categories=Array.isArray(source.categories)?source.categories:null;
+      const banks=Array.isArray(source.banks)
+        ? source.banks
+        : (Array.isArray(source.accounts)?source.accounts:null);
+      const bankTransactions=Array.isArray(source.bankTransactions)
+        ? source.bankTransactions
+        : (Array.isArray(source.transactions)?source.transactions:[]);
+
+      // A valid backup may contain zero expenses, so do not reject empty arrays.
+      if(expenses===null && people===null && categories===null && banks===null && !Array.isArray(source.bankTransactions) && !Array.isArray(source.transactions)){
+        throw new Error('No supported VIJU MONEY MANAGER backup data found.');
+      }
+
+      db={
+        expenses:expenses||[],
+        people:people||['Me'],
+        categories:categories||[...DEFAULT_CATS],
+        banks:banks||[{id:'cash',name:'Cash',balance:0,openingBalance:0}],
+        bankTransactions:bankTransactions,
+        version:4
+      };
+
+      ensureBanks();
+      saveDB();
+      input.value='';
+      alert('Full backup imported successfully.');
+    }catch(e){
+      console.error('VIJU MONEY MANAGER import error:',e);
+      alert('Invalid or unsupported VIJU MONEY MANAGER backup JSON file.');
+    }
+  };
+
+  reader.onerror=function(){
+    alert('Could not read the selected backup JSON file.');
+  };
+
+  reader.readAsText(input.files[0]);
+}
 function clearAll(){
   if(!confirm(
     "This will permanently delete all local expenses, people and categories. Continue?"
@@ -2697,7 +2771,7 @@ function updateDashboardPeriod(){
   const acct=getAccountTotals();
   setText('dashboardCashBalance',money(acct.cashBalance));
   setText('dashboardBankBalance',money(acct.bankBalance));
-  setText('dashboardUpcomingTotal',money(sumExpenses(metrics.upcoming)+sumExpenses(metrics.overdue)));
+  setText('dashboardUpcomingTotal',money(sumExpenses(metrics.upcoming)+metrics.overdue));
 
   const dashUp=document.getElementById('dashboardUpcoming');
   if(dashUp){
