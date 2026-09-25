@@ -1321,19 +1321,8 @@ function renderExpenses(){
   // selected transaction month. Pending means due today or later, and is
   // always ordered from today into the future on the Upcoming page.
   const allExpenses=getExpenses();
-
-  // Apply the Expenses-page filters to the status/summary cards too.
-  const summaryScope=e=>{
-    const haystack=[e.name,e.notes,e.category,e.person,e.payment,e.date,e.dueDate,statusOf(e)]
-      .filter(v=>v!==undefined&&v!==null).join(' ').toLowerCase();
-    return (!q||haystack.includes(q)) &&
-      (!p||e.person===p) &&
-      (!c||e.category===c);
-  };
-
-  const scopedExpenses=allExpenses.filter(summaryScope);
   const todayDate=today();
-  const pendingRows=scopedExpenses.filter(e=>statusOf(e)==='Pending' && e.dueDate && e.dueDate>=todayDate)
+  const pendingRows=allExpenses.filter(e=>statusOf(e)==='Pending' && e.dueDate && e.dueDate>=todayDate)
     .sort((x,y)=>(x.dueDate||'').localeCompare(y.dueDate||''));
   const overdueRows=allExpenses.filter(e=>statusOf(e)==='Overdue')
     .sort((x,y)=>(x.dueDate||'').localeCompare(y.dueDate||''));
@@ -2112,7 +2101,6 @@ function importJSON(){
   if(!input?.files?.[0])return alert('Please choose a JSON backup file first.');
 
   const reader=new FileReader();
-
   reader.onload=function(){
     try{
       const text=String(reader.result||'').replace(/^\uFEFF/,'').trim();
@@ -2121,14 +2109,12 @@ function importJSON(){
       const raw=JSON.parse(text);
       let source=raw;
 
-      // Current backups are wrapped as {app, version, exportedAt, data:{...}}.
-      // Also accept the older wrapper names used by previous app versions.
       for(const k of ['data','backup','database','db','payload','state']){
         if(source&&source[k]&&typeof source[k]==='object'&&!Array.isArray(source[k])&&(
-          Array.isArray(source[k].expenses) ||
-          Array.isArray(source[k].items) ||
-          Array.isArray(source[k].people) ||
-          Array.isArray(source[k].banks) ||
+          Array.isArray(source[k].expenses)||
+          Array.isArray(source[k].items)||
+          Array.isArray(source[k].people)||
+          Array.isArray(source[k].banks)||
           Array.isArray(source[k].accounts)
         )){
           source=source[k];
@@ -2136,26 +2122,20 @@ function importJSON(){
         }
       }
 
-      if(!source||typeof source!=='object'||Array.isArray(source)){
+      if(!source||typeof source!=='object'||Array.isArray(source))
         throw new Error('Backup root is not an object.');
-      }
 
-      const expenses=Array.isArray(source.expenses)
-        ? source.expenses
-        : (Array.isArray(source.items)?source.items:null);
-
+      const expenses=Array.isArray(source.expenses)?source.expenses:
+        (Array.isArray(source.items)?source.items:null);
       const people=Array.isArray(source.people)?source.people:null;
       const categories=Array.isArray(source.categories)?source.categories:null;
-      const banks=Array.isArray(source.banks)
-        ? source.banks
-        : (Array.isArray(source.accounts)?source.accounts:null);
+      const banks=Array.isArray(source.banks)?source.banks:
+        (Array.isArray(source.accounts)?source.accounts:null);
+      const bankTransactions=Array.isArray(source.bankTransactions)?source.bankTransactions:
+        (Array.isArray(source.transactions)?source.transactions:[]);
 
-      const bankTransactions=Array.isArray(source.bankTransactions)
-        ? source.bankTransactions
-        : (Array.isArray(source.transactions)?source.transactions:[]);
-
-      if(expenses===null && people===null && categories===null && banks===null &&
-         !Array.isArray(source.bankTransactions) && !Array.isArray(source.transactions)){
+      if(expenses===null&&people===null&&categories===null&&banks===null&&
+         !Array.isArray(source.bankTransactions)&&!Array.isArray(source.transactions)){
         throw new Error('No supported VIJU MONEY MANAGER backup data found.');
       }
 
@@ -2164,7 +2144,7 @@ function importJSON(){
         people:people||['Me'],
         categories:categories||[...DEFAULT_CATS],
         banks:banks||[{id:'cash',name:'Cash',balance:0,openingBalance:0}],
-        bankTransactions:bankTransactions,
+        bankTransactions,
         version:4
       };
 
@@ -2178,11 +2158,7 @@ function importJSON(){
       alert('Invalid or unsupported VIJU MONEY MANAGER backup JSON file.');
     }
   };
-
-  reader.onerror=function(){
-    alert('Could not read the selected backup JSON file.');
-  };
-
+  reader.onerror=()=>alert('Could not read the selected backup JSON file.');
   reader.readAsText(input.files[0]);
 }
 function clearAll(){
@@ -2830,51 +2806,171 @@ function renderExpenses(){
   const p=document.getElementById('filterPerson')?.value||'';
   const c=document.getElementById('filterCategory')?.value||'';
   const st=document.getElementById('filterStatus')?.value||'';
+
   const now=new Date();
   const selectedMonth=Number(document.getElementById('expenseMonth')?.value)||now.getMonth()+1;
   const selectedYear=Number(document.getElementById('expenseYear')?.value)||now.getFullYear();
   const ym=String(selectedYear)+'-'+String(selectedMonth).padStart(2,'0');
   const all=getExpenses();
-  const a=all.filter(e=>{
-    const hay=[e.name,e.notes,e.category,e.person,e.payment,e.date,e.dueDate,statusOf(e)].filter(v=>v!==undefined&&v!==null).join(' ').toLowerCase();
-    return dateKey(e).startsWith(ym)&&(!q||hay.includes(q))&&(!p||e.person===p)&&(!c||e.category===c)&&(!st||statusOf(e)===st);
-  });
-  // Summary totals are based on the selected month/year, not the search/person/category/status filters.
-  // This keeps the Page 2 cards stable while filters only change the transaction list.
-  const metrics=getExpenseMetrics(selectedMonth,selectedYear);
-  const periodTotal=metrics.total;
-  const periodPaid=metrics.paid;
-  const upcoming=metrics.upcoming;
-  const overdue=metrics.overdueRows;
-  const tomorrowDate=new Date(today()+'T12:00:00');tomorrowDate.setDate(tomorrowDate.getDate()+1);
+
+  // One consistent filter for the entire Expenses page.
+  // Empty Person = All People.
+  const matchesFilters=e=>{
+    const hay=[e.name,e.notes,e.category,e.person,e.payment,e.date,e.dueDate,statusOf(e)]
+      .filter(v=>v!==undefined&&v!==null)
+      .join(' ')
+      .toLowerCase();
+
+    return (!q||hay.includes(q)) &&
+           (!p||e.person===p) &&
+           (!c||e.category===c) &&
+           (!st||statusOf(e)===st);
+  };
+
+  const filteredAll=all.filter(matchesFilters);
+
+  // Main Expenses list: selected month + all other filters.
+  const monthRows=filteredAll.filter(e=>dateKey(e).startsWith(ym));
+  monthRows.sort((a,b)=>dateKey(b).localeCompare(dateKey(a)));
+
+  // Month totals follow the selected Person / Category / Search / Status filters.
+  const periodTotal=monthRows.reduce((sum,e)=>sum+Number(expenseAmount(e)||0),0);
+  const periodPaid=monthRows
+    .filter(e=>statusOf(e)==='Paid')
+    .reduce((sum,e)=>sum+Number(expenseAmount(e)||0),0);
+
+  // Pending / overdue cards follow the same Person / Category / Search filters.
+  // Status is deliberately ignored for these two cards so selecting Status=Paid
+  // does not make the pending/overdue cards misleadingly disappear.
+  const statusScope=e=>{
+    const hay=[e.name,e.notes,e.category,e.person,e.payment,e.date,e.dueDate,statusOf(e)]
+      .filter(v=>v!==undefined&&v!==null)
+      .join(' ')
+      .toLowerCase();
+
+    return (!q||hay.includes(q)) &&
+           (!p||e.person===p) &&
+           (!c||e.category===c);
+  };
+
+  const scopedAll=all.filter(statusScope);
+  const todayKey=today();
+
+  const upcoming=scopedAll
+    .filter(e=>statusOf(e)==='Pending' && dueKey(e) && dueKey(e)>=todayKey)
+    .sort((a,b)=>dueKey(a).localeCompare(dueKey(b))||dateKey(b).localeCompare(dateKey(a)));
+
+  const overdue=scopedAll
+    .filter(e=>statusOf(e)==='Overdue')
+    .sort((a,b)=>dueKey(a).localeCompare(dueKey(b))||dateKey(b).localeCompare(dateKey(a)));
+
+  const upcomingTotal=upcoming.reduce((sum,e)=>sum+Number(expenseAmount(e)||0),0);
+  const overdueTotal=overdue.reduce((sum,e)=>sum+Number(expenseAmount(e)||0),0);
+
+  // Pending schedule follows the selected Person / Category / Search filters.
+  const tomorrowDate=new Date(todayKey+'T12:00:00');
+  tomorrowDate.setDate(tomorrowDate.getDate()+1);
   const tomorrow=tomorrowDate.toISOString().slice(0,10);
-  const todayPending=upcoming.filter(e=>dueKey(e)===today());
+
+  const todayPending=upcoming.filter(e=>dueKey(e)===todayKey);
   const tomorrowPending=upcoming.filter(e=>dueKey(e)===tomorrow);
   const futurePending=upcoming.filter(e=>dueKey(e)>tomorrow);
   const nextDate=futurePending[0]?.dueDate||'';
   const nextPending=nextDate?futurePending.filter(e=>dueKey(e)===nextDate):[];
   const laterPending=nextDate?futurePending.filter(e=>dueKey(e)>nextDate):[];
-  const totalRows=rows=>sumExpenses(rows);
-  const priorityBlock=(title,kind,rows,empty)=>`<section class="upcoming-priority-block"><div class="upcoming-priority-title ${kind}"><span>${title}</span><span class="upcoming-date-tag">${rows.length?rows.length+' expense'+(rows.length===1?'':'s'):''}</span></div>${rows.map(upcomingExpenseCard).join('')||'<div class="upcoming-priority-empty">'+empty+'</div>'}</section>`;
 
+  const priorityBlock=(title,kind,rows,empty)=>
+    `<section class="upcoming-priority-block">
+      <div class="upcoming-priority-title ${kind}">
+        <span>${title}</span>
+        <span class="upcoming-date-tag">${rows.length?rows.length+' expense'+(rows.length===1?'':'s'):''}</span>
+      </div>
+      ${rows.map(upcomingExpenseCard).join('')||
+        '<div class="upcoming-priority-empty">'+empty+'</div>'}
+    </section>`;
+
+  // Expenses summary cards.
   const summary=document.getElementById('expensesSummary');
-  if(summary){summary.innerHTML=`
-    <div class="stat"><b>Total</b><strong>${money(periodTotal)}</strong><span class="subtle">Selected month</span></div>
-    <div class="stat dashboard-stat-click" onclick="showExpenseStatus('Paid')"><b>Paid</b><strong>${money(periodPaid)}</strong><span class="subtle">Selected month</span></div>
-    <div class="stat dashboard-stat-click" onclick="dashboardGo('upcoming')"><b>Pending / Upcoming</b><strong>${money(metrics.pending)}</strong><span class="subtle">All upcoming</span></div>
-    <div class="stat dashboard-stat-click" onclick="dashboardGo('overdue')"><b>Overdue</b><strong>${money(metrics.overdue)}</strong><span class="subtle">All overdue</span></div>
-    <div class="stat dashboard-stat-click" onclick="dashboardGo('upcoming')"><b>Total Upcoming Expenses</b><strong>${money(metrics.pending)}</strong><span class="subtle">All upcoming</span></div>
-    <div class="stat"><b>Expenses</b><strong>${a.length}</strong><span class="subtle">Selected month</span></div>`;}
+  if(summary){
+    summary.innerHTML=`
+      <div class="stat">
+        <b>Total</b><strong>${money(periodTotal)}</strong>
+        <span class="subtle">Selected month</span>
+      </div>
+      <div class="stat dashboard-stat-click" onclick="showExpenseStatus('Paid')">
+        <b>Paid</b><strong>${money(periodPaid)}</strong>
+        <span class="subtle">Selected month</span>
+      </div>
+      <div class="stat dashboard-stat-click" onclick="dashboardGo('upcoming')">
+        <b>Pending / Upcoming</b><strong>${money(upcomingTotal)}</strong>
+        <span class="subtle">Filtered upcoming</span>
+      </div>
+      <div class="stat dashboard-stat-click" onclick="dashboardGo('overdue')">
+        <b>Overdue</b><strong>${money(overdueTotal)}</strong>
+        <span class="subtle">Filtered overdue</span>
+      </div>
+      <div class="stat dashboard-stat-click" onclick="dashboardGo('upcoming')">
+        <b>Total Upcoming Expenses</b><strong>${money(upcomingTotal)}</strong>
+        <span class="subtle">Filtered upcoming</span>
+      </div>
+      <div class="stat">
+        <b>Expenses</b><strong>${monthRows.length}</strong>
+        <span class="subtle">Selected month</span>
+      </div>`;
+  }
 
+  // Pending schedule.
   const priority=document.getElementById('expensesPriority');
-  if(priority)priority.innerHTML=priorityBlock('Today — '+fmtDate(today()),'today',todayPending,'No pending expenses due today.')+priorityBlock('Tomorrow — '+fmtDate(tomorrow),'tomorrow',tomorrowPending,'No pending expenses due tomorrow.')+(nextDate?priorityBlock('Next upcoming — '+fmtDate(nextDate),'next',nextPending,''):'<section class="upcoming-priority-block"><div class="upcoming-priority-title next">Next upcoming expense</div><div class="upcoming-priority-empty">No future pending expenses are scheduled.</div></section>')+(laterPending.length?priorityBlock('Later upcoming expenses','',laterPending,''):'');
+  if(priority){
+    priority.innerHTML=
+      priorityBlock('Today — '+fmtDate(todayKey),'today',todayPending,'No pending expenses due today.')+
+      priorityBlock('Tomorrow — '+fmtDate(tomorrow),'tomorrow',tomorrowPending,'No pending expenses due tomorrow.')+
+      (nextDate
+        ? priorityBlock('Next upcoming — '+fmtDate(nextDate),'next',nextPending,'')
+        : '<section class="upcoming-priority-block"><div class="upcoming-priority-title next">Next upcoming expense</div><div class="upcoming-priority-empty">No future pending expenses are scheduled.</div></section>')+
+      (laterPending.length?priorityBlock('Later upcoming expenses','',laterPending,''):'');
+  }
 
-  const paidTransactions=all.filter(e=>statusOf(e)==='Paid').sort((x,y)=>dateKey(y).localeCompare(dateKey(x)));
+  // Completed transactions remain the full Paid table, as in the original app.
+  const paidTransactions=all
+    .filter(e=>statusOf(e)==='Paid')
+    .sort((x,y)=>dateKey(y).localeCompare(dateKey(x)));
+
   const paidTable=document.getElementById('paidExpensesTable');
-  if(paidTable)paidTable.innerHTML=paidTransactions.length?`<table class="completed-transactions-table"><thead><tr><th>Date</th><th>Expense Name</th><th>Description</th><th>Person</th><th>Category</th><th>Payment / Account</th><th>Amount</th><th>Status / Actions</th></tr></thead><tbody>${paidTransactions.map(e=>{const account=findExpenseAccount(e);const payment=account?.name||e.payment||'-';return `<tr><td>${fmtDate(e.date)}</td><td><b>${esc(e.name)}</b></td><td class="description-cell">${esc(e.notes||'No description')}</td><td>${esc(e.person||'-')}</td><td>${esc(e.category||'-')}</td><td>${esc(payment)}</td><td class="amount-cell">${money(expenseAmount(e))}</td><td><span class="status paid">Paid</span><div class="action-cell"><button class="btn light" onclick="openExpense('${e.id}')">Edit</button><button class="btn danger" onclick="deleteExpense('${e.id}')">Delete</button></div></td></tr>`}).join('')}</tbody></table>`:'<div class="empty">No completed expenses yet.</div>';
+  if(paidTable){
+    paidTable.innerHTML=paidTransactions.length
+      ? `<table class="completed-transactions-table"><thead><tr>
+          <th>Date</th><th>Expense Name</th><th>Description</th><th>Person</th>
+          <th>Category</th><th>Payment / Account</th><th>Amount</th><th>Status / Actions</th>
+        </tr></thead><tbody>${
+          paidTransactions.map(e=>{
+            const account=findExpenseAccount(e);
+            const payment=account?.name||e.payment||'-';
+            return `<tr>
+              <td>${fmtDate(e.date)}</td>
+              <td><b>${esc(e.name)}</b></td>
+              <td class="description-cell">${esc(e.notes||'No description')}</td>
+              <td>${esc(e.person||'-')}</td>
+              <td>${esc(e.category||'-')}</td>
+              <td>${esc(payment)}</td>
+              <td class="amount-cell">${money(expenseAmount(e))}</td>
+              <td><span class="status paid">Paid</span><div class="action-cell">
+                <button class="btn light" onclick="openExpense('${e.id}')">Edit</button>
+                <button class="btn danger" onclick="deleteExpense('${e.id}')">Delete</button>
+              </div></td>
+            </tr>`;
+          }).join('')
+        }</tbody></table>`
+      : '<div class="empty">No completed expenses yet.</div>';
+  }
 
+  // Main expense list: this is the list the user sees after selecting Viju/kittu/etc.
   const tb=document.getElementById('expenseTable');
-  if(tb)tb.innerHTML=a.length?a.sort((x,y)=>dateKey(y).localeCompare(dateKey(x))).map(expenseCard).join(''):'<div class="empty">No expenses found.</div>';
+  if(tb){
+    tb.innerHTML=monthRows.length
+      ? monthRows.map(expenseCard).join('')
+      : '<div class="empty">No expenses found for the selected filters.</div>';
+  }
 }
 
 // Upcoming and Overdue always use the same global helpers.
