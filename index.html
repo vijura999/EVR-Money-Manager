@@ -1130,7 +1130,7 @@ function saveDB(){db.updatedAt=new Date().toISOString();localStorage.setItem(KEY
 function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
 function money(n){return '₹'+Number(n||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})}
 function today(){return new Date().toISOString().slice(0,10)}
-function fmtDate(s){if(!s)return '-';let p=s.split('-');return p.length===3?`${p[2]}-${p[1]}-${p[0]}`:s}
+function fmtDate(s){if(!s)return '-';const raw=String(s).slice(0,10);if(/^\d{4}-\d{2}-\d{2}$/.test(raw)){const p=raw.split('-');return `${p[2]}-${p[1]}-${p[0]}`;}if(/^\d{2}-\d{2}-\d{4}$/.test(raw))return raw;return s}
 function getExpenses(){return [...db.expenses].sort((a,b)=>(b.date||'').localeCompare(a.date||''))}
 function statusOf(e){if(e.status==='Paid')return 'Paid';if(e.dueDate&&e.dueDate<today())return 'Overdue';return 'Pending'}
 function toast(t){let x=document.getElementById('toast');x.textContent=t;x.classList.add('show');setTimeout(()=>x.classList.remove('show'),2200)}
@@ -1310,7 +1310,7 @@ function renderExpenses(){
   let a=getExpenses().filter(e=>{
     const haystack=[e.name,e.notes,e.category,e.person,e.payment,e.date,e.dueDate,statusOf(e)]
       .filter(v=>v!==undefined&&v!==null).join(' ').toLowerCase();
-    return (e.date||'').startsWith(ym) &&
+    return dateKey(e).startsWith(ym) &&
       (!q||haystack.includes(q)) &&
       (!p||e.person===p) &&
       (!c||e.category===c) &&
@@ -2500,19 +2500,11 @@ function openOverdueExpenses(){
 }
 
 function initExpensesPeriod(){
-  const y=document.getElementById('expenseYear'),m=document.getElementById('expenseMonth');
-  if(!y||!m)return;
-  const now=new Date(),current=now.getFullYear(),currentMonth=now.getMonth()+1;
-  // Always open the Expenses page on the real current month/year.
-  // Do not leave the first <option> selected (which previously caused
-  // August 2016 / other old periods to appear on first load).
-  y.innerHTML='';
-  for(let year=current-10;year<=current+10;year++){
-    y.innerHTML+='<option value="'+year+'">'+year+'</option>';
-  }
-  m.value=String(currentMonth);
-  y.value=String(current);
+  // Do not reset the user's selected month when navigating back to Expenses.
+  // The shared period is initialized once to the current month and then kept.
+  ensureSharedPeriod();
 }
+
 
 
 // Close the hamburger menu whenever the user taps/clicks outside it.
@@ -2543,7 +2535,7 @@ function saveBankSubTransaction(kind){ensureBanks();let type=kind,from='',to='',
 const _oldRenderDashboard=renderDashboard;
 renderDashboard=function(){_oldRenderDashboard();ensureBanks();const el=document.getElementById('dashboardBankBalance');const cash=db.banks.find(b=>b.id==='cash');const bankTotal=db.banks.filter(b=>b.id!=='cash').reduce((s,b)=>s+Number(b.balance||0),0);if(el)el.textContent=money(bankTotal);const cashEl=document.getElementById('dashboardCashBalance');if(cashEl)cashEl.textContent=money(cash?.balance||0);const m=document.getElementById('dashboardMonth'),y=document.getElementById('dashboardYear');if(m&&y){const now=new Date();if(!m.value)m.value=String(now.getMonth()+1);if(!y.value)y.value=String(now.getFullYear())}};
 const _oldPage=page;
-page=function(id,btn){_oldPage(id,btn);document.querySelectorAll('.bottom-nav button').forEach(b=>b.classList.remove('active'));const map={dashboard:0,expenses:1,upcoming:2,people:3,banks:4,reports:5};if(map[id]!=null){const b=document.querySelectorAll('.bottom-nav button')[map[id]];if(b)b.classList.add('active')}if(id==='banks')syncBankSubSelects();if(id==='dashboard')initDashboardPeriod();if(id==='expenses'){initExpensesPeriod();renderExpenses();}if(id==='upcoming'){ensureSharedPeriod();renderUpcoming();}};
+page=function(id,btn){_oldPage(id,btn);document.querySelectorAll('.bottom-nav button').forEach(b=>b.classList.remove('active'));const map={dashboard:0,expenses:1,upcoming:2,people:3,banks:4,reports:5};if(map[id]!=null){const b=document.querySelectorAll('.bottom-nav button')[map[id]];if(b)b.classList.add('active')}if(id==='banks')syncBankSubSelects();if(id==='dashboard')initDashboardPeriod();if(id==='expenses'){ensureSharedPeriod();renderExpenses();}if(id==='upcoming'){ensureSharedPeriod();renderUpcoming();}};
 window.addEventListener('load',function(){syncBankSubSelects();ensureSharedPeriod();updateDashboardPeriod();renderExpenses();renderUpcoming();});
 
 // ===== SHARED MONTH / YEAR PERIOD =====
@@ -2560,7 +2552,12 @@ function populatePeriodYears(id){
 }
 function ensureSharedPeriod(){
   const now=new Date();
-  if(!window.vijuSelectedPeriod)window.vijuSelectedPeriod={month:now.getMonth()+1,year:now.getFullYear()};
+  if(!window.vijuSelectedPeriod){
+    let saved=null;
+    try{saved=JSON.parse(sessionStorage.getItem('vijuSelectedPeriod')||'null')}catch(e){}
+    const valid=saved&&Number(saved.month)>=1&&Number(saved.month)<=12&&Number(saved.year)>=2000&&Number(saved.year)<=2100;
+    window.vijuSelectedPeriod=valid?{month:Number(saved.month),year:Number(saved.year)}:{month:now.getMonth()+1,year:now.getFullYear()};
+  }
   ['dashboardYear','expenseYear','upcomingYear'].forEach(populatePeriodYears);
   const ids=[['dashboardMonth','dashboardYear'],['expenseMonth','expenseYear'],['upcomingMonth','upcomingYear']];
   ids.forEach(([m,y])=>{
@@ -2583,6 +2580,7 @@ function changeSharedPeriod(source){
   if(yearIds.includes(id))year=Number(source.value);
   if(!month||!year)return;
   window.vijuSelectedPeriod={month,year};
+  try{sessionStorage.setItem('vijuSelectedPeriod',JSON.stringify(window.vijuSelectedPeriod));}catch(e){}
   ensureSharedPeriod();
   updateDashboardPeriod();
   renderExpenses();
@@ -2744,8 +2742,20 @@ function expenseAmount(e){
   return Number.isFinite(n)?n:0;
 }
 
-function dateKey(e){return String(e&&e.date||'').slice(0,10)}
-function dueKey(e){return String(e&&e.dueDate||'').slice(0,10)}
+// Normalize dates from both supported formats: YYYY-MM-DD (HTML date input)
+// and DD-MM-YYYY (older saved records). All filtering/sorting uses ISO.
+function normalizeDateKey(value){
+  const s=String(value||'').trim().slice(0,10);
+  if(!s)return '';
+  if(/^\d{4}-\d{2}-\d{2}$/.test(s))return s;
+  if(/^\d{2}-\d{2}-\d{4}$/.test(s)){
+    const [d,m,y]=s.split('-');
+    return `${y}-${m}-${d}`;
+  }
+  return s;
+}
+function dateKey(e){return normalizeDateKey(e&&e.date)}
+function dueKey(e){return normalizeDateKey(e&&e.dueDate)}
 
 function getUpcomingExpenses(){
   const t=today();
