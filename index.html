@@ -2571,17 +2571,30 @@ function getSharedPeriod(){
   return {month:Number(window.vijuSelectedPeriod.month),year:Number(window.vijuSelectedPeriod.year)};
 }
 function changeSharedPeriod(source){
-  ensureSharedPeriod();
-  const id=source?.id||'';
-  const monthIds=['dashboardMonth','expenseMonth','upcomingMonth'];
-  const yearIds=['dashboardYear','expenseYear','upcomingYear'];
-  let month=Number(window.vijuSelectedPeriod.month), year=Number(window.vijuSelectedPeriod.year);
-  if(monthIds.includes(id))month=Number(source.value);
-  if(yearIds.includes(id))year=Number(source.value);
-  if(!month||!year)return;
-  window.vijuSelectedPeriod={month,year};
+  // Read the value directly from the selector that was changed, then update
+  // the single shared month/year state. Never reset it back to the current month.
+  const el = (source && source.nodeType===1) ? source : null;
+  const id = el ? el.id : '';
+  let period = window.vijuSelectedPeriod || null;
+  if(!period){
+    const now=new Date();
+    period={month:now.getMonth()+1,year:now.getFullYear()};
+  }
+  let month=Number(period.month), year=Number(period.year);
+  if(id==='expenseMonth' || id==='dashboardMonth' || id==='upcomingMonth') month=Number(el.value);
+  if(id==='expenseYear' || id==='dashboardYear' || id==='upcomingYear') year=Number(el.value);
+  if(!(month>=1&&month<=12) || !(year>=2000&&year<=2100)) return;
+
+  window.vijuSelectedPeriod={month:month,year:year};
   try{sessionStorage.setItem('vijuSelectedPeriod',JSON.stringify(window.vijuSelectedPeriod));}catch(e){}
-  ensureSharedPeriod();
+
+  // Synchronize all three selectors immediately.
+  [['dashboardMonth','dashboardYear'],['expenseMonth','expenseYear'],['upcomingMonth','upcomingYear']].forEach(([mid,yid])=>{
+    const m=document.getElementById(mid), y=document.getElementById(yid);
+    if(m)m.value=String(month);
+    if(y)y.value=String(year);
+  });
+
   updateDashboardPeriod();
   renderExpenses();
   renderUpcoming();
@@ -2847,12 +2860,9 @@ function updateDashboardPeriod(){
 }
 
 function initDashboardPeriod(){
-  const y=document.getElementById('dashboardYear'),m=document.getElementById('dashboardMonth');
-  if(!y||!m)return;
-  const now=new Date(),current=now.getFullYear();
-  y.innerHTML='';
-  for(let year=current-10;year<=current+10;year++)y.innerHTML+='<option value="'+year+'">'+year+'</option>';
-  m.value=String(now.getMonth()+1);y.value=String(current);updateDashboardPeriod();
+  // Initialize once; never overwrite a month selected by the user.
+  ensureSharedPeriod();
+  updateDashboardPeriod();
 }
 
 function renderDashboard(){
@@ -2869,9 +2879,8 @@ function renderExpenses(){
   const c=document.getElementById('filterCategory')?.value||'';
   const st=document.getElementById('filterStatus')?.value||'';
 
-  const now=new Date();
-  const selectedMonth=Number(document.getElementById('expenseMonth')?.value)||now.getMonth()+1;
-  const selectedYear=Number(document.getElementById('expenseYear')?.value)||now.getFullYear();
+  ensureSharedPeriod();
+  const {month:selectedMonth,year:selectedYear}=getSharedPeriod();
   const ym=String(selectedYear)+'-'+String(selectedMonth).padStart(2,'0');
   const all=getExpenses();
 
