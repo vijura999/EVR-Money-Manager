@@ -828,7 +828,7 @@ html,body,#application{overscroll-behavior-x:none!important;}
   <div style="display:flex;gap:12px;flex-wrap:wrap">
     <div class="group">
       <label>Month</label>
-      <select id="dashboardMonth" onchange="updateDashboardPeriod()">
+      <select id="dashboardMonth" onchange="changeSharedPeriod(this)">
         <option value="1">January</option><option value="2">February</option>
         <option value="3">March</option><option value="4">April</option>
         <option value="5">May</option><option value="6">June</option>
@@ -843,7 +843,7 @@ html,body,#application{overscroll-behavior-x:none!important;}
 
     <div class="group">
       <label>Year</label>
-      <select id="dashboardYear" onchange="updateDashboardPeriod()"></select>
+      <select id="dashboardYear" onchange="changeSharedPeriod(this)"></select>
     </div>
   </div>
 </div>
@@ -854,12 +854,12 @@ html,body,#application{overscroll-behavior-x:none!important;}
 <h1>2. Expenses <span class="subtle">(All)</span></h1><div class="card">
 <div style="display:flex;justify-content:space-between;align-items:center"><h2>All Expenses</h2><button class="btn primary" onclick="openExpense()">+ Add Expense</button></div><br>
 <div class="expenses-period-selector">
-  <div class="group"><label>Month</label><select id="expenseMonth" onchange="renderExpenses()">
+  <div class="group"><label>Month</label><select id="expenseMonth" onchange="changeSharedPeriod(this)">
     <option value="1">January</option><option value="2">February</option><option value="3">March</option><option value="4">April</option>
     <option value="5">May</option><option value="6">June</option><option value="7">July</option><option value="8">August</option>
     <option value="9">September</option><option value="10">October</option><option value="11">November</option><option value="12">December</option>
   </select></div>
-  <div class="group"><label>Year</label><select id="expenseYear" onchange="renderExpenses()"></select></div>
+  <div class="group"><label>Year</label><select id="expenseYear" onchange="changeSharedPeriod(this)"></select></div>
 </div>
 <div class="filters">
 <div class="group"><label>Search</label><input id="search" oninput="renderExpenses()" placeholder="Search"></div>
@@ -879,6 +879,9 @@ html,body,#application{overscroll-behavior-x:none!important;}
 </div></section>
 
 <section id="upcoming" class="page"><h1>4. Upcoming Expenses <span class="subtle">(by due date)</span></h1>
+<div class="card" style="margin-bottom:14px"><div class="expenses-period-selector" style="margin:0"><div class="group"><label>Month</label><select id="upcomingMonth" onchange="changeSharedPeriod(this)">
+    <option value="1">January</option><option value="2">February</option><option value="3">March</option><option value="4">April</option><option value="5">May</option><option value="6">June</option><option value="7">July</option><option value="8">August</option><option value="9">September</option><option value="10">October</option><option value="11">November</option><option value="12">December</option>
+  </select></div><div class="group"><label>Year</label><select id="upcomingYear" onchange="changeSharedPeriod(this)"></select></div></div></div>
 <div class="stats-grid upcoming-summary">
   <div class="stat"><small>Pending Today</small><strong id="todayPendingTotal">₹0.00</strong><span id="todayPendingCount" class="subtle">0 expenses</span></div>
   <div class="stat"><small>Pending Tomorrow</small><strong id="tomorrowPendingTotal">₹0.00</strong><span id="tomorrowPendingCount" class="subtle">0 expenses</span></div>
@@ -2540,35 +2543,84 @@ function saveBankSubTransaction(kind){ensureBanks();let type=kind,from='',to='',
 const _oldRenderDashboard=renderDashboard;
 renderDashboard=function(){_oldRenderDashboard();ensureBanks();const el=document.getElementById('dashboardBankBalance');const cash=db.banks.find(b=>b.id==='cash');const bankTotal=db.banks.filter(b=>b.id!=='cash').reduce((s,b)=>s+Number(b.balance||0),0);if(el)el.textContent=money(bankTotal);const cashEl=document.getElementById('dashboardCashBalance');if(cashEl)cashEl.textContent=money(cash?.balance||0);const m=document.getElementById('dashboardMonth'),y=document.getElementById('dashboardYear');if(m&&y){const now=new Date();if(!m.value)m.value=String(now.getMonth()+1);if(!y.value)y.value=String(now.getFullYear())}};
 const _oldPage=page;
-page=function(id,btn){_oldPage(id,btn);document.querySelectorAll('.bottom-nav button').forEach(b=>b.classList.remove('active'));const map={dashboard:0,expenses:1,upcoming:2,people:3,banks:4,reports:5};if(map[id]!=null){const b=document.querySelectorAll('.bottom-nav button')[map[id]];if(b)b.classList.add('active')}if(id==='banks')syncBankSubSelects();if(id==='dashboard')initDashboardPeriod();if(id==='expenses'){initExpensesPeriod();renderExpenses();}};
-window.addEventListener('load',function(){syncBankSubSelects();});
+page=function(id,btn){_oldPage(id,btn);document.querySelectorAll('.bottom-nav button').forEach(b=>b.classList.remove('active'));const map={dashboard:0,expenses:1,upcoming:2,people:3,banks:4,reports:5};if(map[id]!=null){const b=document.querySelectorAll('.bottom-nav button')[map[id]];if(b)b.classList.add('active')}if(id==='banks')syncBankSubSelects();if(id==='dashboard')initDashboardPeriod();if(id==='expenses'){initExpensesPeriod();renderExpenses();}if(id==='upcoming'){ensureSharedPeriod();renderUpcoming();}};
+window.addEventListener('load',function(){syncBankSubSelects();ensureSharedPeriod();updateDashboardPeriod();renderExpenses();renderUpcoming();});
 
-// Final dashboard behavior: latest/current month by default; selecting Dashboard Period changes only the dashboard month.
+// ===== SHARED MONTH / YEAR PERIOD =====
+// One selected month/year drives Dashboard, Expenses and Upcoming Expenses.
+// Default = the real current month. Changing it never changes the global
+// Pending/Upcoming or Overdue obligations; those remain date-based/global.
+function populatePeriodYears(id){
+  const el=document.getElementById(id); if(!el)return;
+  const now=new Date(), current=now.getFullYear();
+  const old=el.value;
+  el.innerHTML='';
+  for(let year=current-10;year<=current+10;year++)el.innerHTML+='<option value="'+year+'">'+year+'</option>';
+  if(old && [...el.options].some(o=>o.value===old))el.value=old;
+}
+function ensureSharedPeriod(){
+  const now=new Date();
+  if(!window.vijuSelectedPeriod)window.vijuSelectedPeriod={month:now.getMonth()+1,year:now.getFullYear()};
+  ['dashboardYear','expenseYear','upcomingYear'].forEach(populatePeriodYears);
+  const ids=[['dashboardMonth','dashboardYear'],['expenseMonth','expenseYear'],['upcomingMonth','upcomingYear']];
+  ids.forEach(([m,y])=>{
+    const me=document.getElementById(m),ye=document.getElementById(y);
+    if(me)me.value=String(window.vijuSelectedPeriod.month);
+    if(ye)ye.value=String(window.vijuSelectedPeriod.year);
+  });
+}
+function getSharedPeriod(){
+  ensureSharedPeriod();
+  return {month:Number(window.vijuSelectedPeriod.month),year:Number(window.vijuSelectedPeriod.year)};
+}
+function changeSharedPeriod(source){
+  ensureSharedPeriod();
+  const id=source?.id||'';
+  const monthIds=['dashboardMonth','expenseMonth','upcomingMonth'];
+  const yearIds=['dashboardYear','expenseYear','upcomingYear'];
+  let month=Number(window.vijuSelectedPeriod.month), year=Number(window.vijuSelectedPeriod.year);
+  if(monthIds.includes(id))month=Number(source.value);
+  if(yearIds.includes(id))year=Number(source.value);
+  if(!month||!year)return;
+  window.vijuSelectedPeriod={month,year};
+  ensureSharedPeriod();
+  updateDashboardPeriod();
+  renderExpenses();
+  renderUpcoming();
+}
+
 function updateDashboardPeriod(){
-  const m=Number(document.getElementById('dashboardMonth')?.value||new Date().getMonth()+1);
-  const y=Number(document.getElementById('dashboardYear')?.value||new Date().getFullYear());
+  const {month:m,year:y}=getSharedPeriod();
   const ym=String(y)+'-'+String(m).padStart(2,'0');
-  const rows=getExpenses().filter(e=>(e.date||'').startsWith(ym)).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
-  const total=rows.reduce((s,e)=>s+Number(e.amount||0),0);
-  const paid=rows.filter(e=>statusOf(e)==='Paid').reduce((s,e)=>s+Number(e.amount||0),0);
-  const pending=rows.filter(e=>statusOf(e)==='Pending').reduce((s,e)=>s+Number(e.amount||0),0);
-  const overdue=rows.filter(e=>statusOf(e)==='Overdue').reduce((s,e)=>s+Number(e.amount||0),0);
+  const rows=getExpenses().filter(e=>dateKey(e).startsWith(ym)).sort((a,b)=>dateKey(b).localeCompare(dateKey(a)));
+  const total=sumExpenses(rows);
+  const paid=sumExpenses(rows.filter(e=>statusOf(e)==='Paid'));
+  // Pending and overdue cards are GLOBAL, not limited to the selected month.
+  const upcoming=getUpcomingExpenses();
+  const overdue=getOverdueExpenses();
+  const pending=sumExpenses(upcoming);
+  const overdueTotal=sumExpenses(overdue);
   const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v};
-  set('totalAmount',money(total));set('paidAmount',money(paid));set('pendingAmount',money(pending));set('overdueAmount',money(overdue));set('peopleCount',db.people.length);
+  set('totalAmount',money(total));
+  set('paidAmount',money(paid));
+  set('pendingAmount',money(pending));
+  set('overdueAmount',money(overdueTotal));
+  set('peopleCount',db.people.length);
   const recent=document.getElementById('recent');
   if(recent)recent.innerHTML=rows.slice(0,8).map(e=>`<div class="manage-row"><span><b>${esc(e.name)}</b><br><small>${fmtDate(e.date)} · ${esc(e.person)}</small></span><b>${money(e.amount)}</b></div>`).join('')||'<div class="empty">No transactions for this month.</div>';
-  ensureBanks();const cash=db.banks.find(b=>b.id==='cash');const bankTotal=db.banks.filter(b=>b.id!=='cash').reduce((s,b)=>s+Number(b.balance||0),0);set('dashboardCashBalance',money(cash?.balance||0));set('dashboardBankBalance',money(bankTotal));
-  const upcomingTotal=getExpenses().filter(e=>statusOf(e)==='Pending'&&e.dueDate&&e.dueDate>=today()).reduce((s,e)=>s+Number(e.amount||0),0);const overdueTotal=getExpenses().filter(e=>statusOf(e)==='Overdue').reduce((s,e)=>s+Number(e.amount||0),0);set('dashboardUpcomingTotal',money(upcomingTotal+overdueTotal));
+  ensureBanks();
+  const cash=db.banks.find(b=>b.id==='cash');
+  const bankTotal=db.banks.filter(b=>b.id!=='cash').reduce((s,b)=>s+Number(b.balance||0),0);
+  set('dashboardCashBalance',money(cash?.balance||0));set('dashboardBankBalance',money(bankTotal));
+  set('dashboardUpcomingTotal',money(pending+overdueTotal));
   const d=new Date();d.setHours(0,0,0,0);const end=new Date(d);end.setDate(end.getDate()+7);const endS=end.toISOString().slice(0,10);
-  const up=getExpenses().filter(e=>statusOf(e)==='Pending'&&e.dueDate&&e.dueDate>=today()&&e.dueDate<endS).sort((a,b)=>(a.dueDate||'').localeCompare(b.dueDate||''));
-  const dashUp=document.getElementById('dashboardUpcoming');if(dashUp)dashUp.innerHTML=up.map(e=>`<div class="manage-row"><span><b>${esc(e.name)}</b><br><small>Due ${fmtDate(e.dueDate)}</small></span><b>${money(e.amount)}</b></div>`).join('')||'<div class="empty">No expenses due in the next 7 days.</div>';
-  const ut=document.getElementById('upcomingTotal');if(ut)ut.textContent=up.length+' expenses · '+money(up.reduce((s,e)=>s+Number(e.amount||0),0));
+  const up=upcoming.filter(e=>dueKey(e)<endS);
+  const dashUp=document.getElementById('dashboardUpcoming');
+  if(dashUp)dashUp.innerHTML=up.map(e=>`<div class="manage-row"><span><b>${esc(e.name)}</b><br><small>Due ${fmtDate(e.dueDate)}</small></span><b>${money(e.amount)}</b></div>`).join('')||'<div class="empty">No expenses due in the next 7 days.</div>';
+  const ut=document.getElementById('upcomingTotal');if(ut)ut.textContent=up.length+' expenses · '+money(sumExpenses(up));
 }
-function initDashboardPeriod(){
-  const y=document.getElementById('dashboardYear'),m=document.getElementById('dashboardMonth');if(!y||!m)return;
-  const now=new Date(),current=now.getFullYear();y.innerHTML='';for(let year=current-10;year<=current+10;year++)y.innerHTML+='<option value="'+year+'">'+year+'</option>';
-  m.value=String(now.getMonth()+1);y.value=String(current);updateDashboardPeriod();
-}
+function initDashboardPeriod(){ensureSharedPeriod();updateDashboardPeriod();}
+
 // Mark a pending expense as paid. If its payment account is already known,
 // debit that account immediately. Otherwise open the editor so the user can
 // choose the exact Cash / Bank account before the debit is committed.
@@ -2931,8 +2983,10 @@ function renderExpenses(){
       (laterPending.length?priorityBlock('Later upcoming expenses','',laterPending,''):'');
   }
 
-  // Completed transactions remain the full Paid table, as in the original app.
-  const paidTransactions=all
+  // Completed transactions follow the selected month too.
+  // Overdue/Pending cards above remain global, but this historical Paid table
+  // must never show transactions from other months.
+  const paidTransactions=monthRows
     .filter(e=>statusOf(e)==='Paid')
     .sort((x,y)=>dateKey(y).localeCompare(dateKey(x)));
 
@@ -2988,13 +3042,16 @@ function renderUpcoming(){
   const total=rows=>sumExpenses(rows);
   const block=(title,kind,rows,empty)=>`<section class="upcoming-priority-block"><div class="upcoming-priority-title ${kind}"><span>${title}</span><span class="upcoming-date-tag">${rows.length?rows.length+' expense'+(rows.length===1?'':'s'):''}</span></div>${rows.map(upcomingExpenseCard).join('')||'<div class="upcoming-priority-empty">'+empty+'</div>'}</section>`;
   // Summary totals are calculated from the same global expense data used by the app.
+  const {month:selectedMonth,year:selectedYear}=getSharedPeriod();
+  const selectedYM=String(selectedYear)+'-'+String(selectedMonth).padStart(2,'0');
   const allExpenses=getExpenses();
+  const selectedMonthExpenses=allExpenses.filter(e=>dateKey(e).startsWith(selectedYM));
   const pendingOverdue=[...upcoming,...overdue];
   const pendingOverdueTotal=total(upcoming)+total(overdue);
   setText('upcomingGrandTotal',money(total(upcoming)));
   setText('upcomingGrandCount',upcoming.length+' expense'+(upcoming.length===1?'':'s'));
-  setText('upcomingAllExpensesTotal',money(total(allExpenses)));
-  setText('upcomingAllExpensesCount',allExpenses.length+' expense'+(allExpenses.length===1?'':'s')+' recorded');
+  setText('upcomingAllExpensesTotal',money(total(selectedMonthExpenses)));
+  setText('upcomingAllExpensesCount',selectedMonthExpenses.length+' expense'+(selectedMonthExpenses.length===1?'':'s')+' recorded');
   setText('upcomingPendingOverdueTotal',money(pendingOverdueTotal));
   setText('upcomingPendingOverdueCount',pendingOverdue.length+' expense'+(pendingOverdue.length===1?'':'s'));
   setText('upcomingOverdueTotal',money(total(overdue)));
