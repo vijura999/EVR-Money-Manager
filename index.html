@@ -2190,9 +2190,27 @@ function importJSON(){
 
       ensureBanks();
 
-      // Save the restored database first so the data is not lost even if a
-      // UI renderer has a problem with an older backup field.
-      saveDB();
+      // Persist the restored data directly.  The normal saveDB() function
+      // also calls renderAll(), so using it here could make a successful
+      // restore look like an import failure if a screen renderer has an
+      // unrelated UI error.
+      const restoredSnapshot=JSON.parse(JSON.stringify(db));
+      restoredSnapshot.updatedAt=new Date().toISOString();
+      db.updatedAt=restoredSnapshot.updatedAt;
+
+      try{
+        localStorage.setItem(KEY,JSON.stringify(restoredSnapshot));
+      }catch(storageError){
+        console.warn('localStorage restore warning:',storageError);
+      }
+
+      try{
+        if(typeof offlinePut==='function'){
+          offlinePut(restoredSnapshot).catch(e=>console.warn('IndexedDB restore warning:',e));
+        }
+      }catch(offlineError){
+        console.warn('IndexedDB restore warning:',offlineError);
+      }
 
       input.value='';
 
