@@ -2453,20 +2453,68 @@ fillAccountSelect('eAccount');fillAccountSelect('txFrom');fillAccountSelect('txT
 function saveBankTransaction(){ensureBanks();const type=document.getElementById('txType').value,from=document.getElementById('txFrom').value,to=document.getElementById('txTo').value,amount=Number(document.getElementById('txAmount').value||0),note=document.getElementById('txNote').value.trim();if(amount<=0)return alert('Enter a valid amount.');if(type==='transfer'){if(!from||!to||from===to)return alert('Choose different From and To accounts.');if(accountBalance(from)<amount)return alert('Insufficient available balance.');db.banks.find(b=>b.id===from).balance-=amount;db.banks.find(b=>b.id===to).balance+=amount}else if(type==='deposit'){if(!to)return alert('Choose the bank receiving the cash deposit.');db.banks.find(b=>b.id===to).balance+=amount}else if(type==='atm'){if(!from)return alert('Choose the bank.');if(accountBalance(from)<amount)return alert('Insufficient available balance.');db.banks.find(b=>b.id===from).balance-=amount;/* ATM withdrawal intentionally does not add to Cash */}else if(type==='adjust'){if(!to)return alert('Choose an account.');db.banks.find(b=>b.id===to).balance+=amount}const f=db.banks.find(b=>b.id===from),t=db.banks.find(b=>b.id===to);db.bankTransactions.push({id:'tx_'+Date.now(),date:today(),type,from,to,fromName:f?.name||'',toName:t?.name||'',amount,note});saveDB();renderBanks();toast('Transaction saved')}
 function saveBankTransactionsPDF(){
   ensureBanks();
-  const balanceRows=db.banks.map(b=>[today(),b.name,pdfMoney(b.balance),'Available Balance','-', 'Current Balance']);
-  const txRows=db.bankTransactions.slice().reverse().map(t=>{
-    const typeMap={transfer:'Bank Transfer',deposit:'Cash Deposit',cashbank:'Cash -> Bank',atm:'ATM Withdrawal',adjust:'Balance Adjustment'};
-    return [fmtDate(t.date||today()),typeMap[t.type]||String(t.type||'Bank Transaction'),pdfMoney(t.amount),'Bank Transaction',(t.fromName||'-')+' -> '+(t.toName||'-'),'Completed'];
-  });
+
+  // Separate account-balance section: every Cash/Bank account is listed
+  // individually with its current available balance.
+  const balanceRows=db.banks.map(b=>[
+    b.name||'-',
+    b.id==='cash'?'Cash':'Bank Account',
+    pdfMoney(Number(b.balance||0))
+  ]);
+
+  // Separate transaction section: keep every recorded Cash & Banks transaction.
+  const typeMap={
+    transfer:'Bank Transfer',
+    deposit:'Cash Deposit',
+    cashbank:'Cash -> Bank',
+    atm:'ATM Withdrawal',
+    adjust:'Balance Adjustment'
+  };
+
+  const txRows=db.bankTransactions.slice().reverse().map(t=>[
+    fmtDate(t.date||today()),
+    typeMap[t.type]||String(t.type||'Bank Transaction'),
+    pdfMoney(Number(t.amount||0)),
+    t.fromName||'-',
+    t.toName||'-',
+    t.note||'-'
+  ]);
+
+  const totalBalance=db.banks.reduce((s,b)=>s+Number(b.balance||0),0);
+
   saveTablePDF({
     title:'VIJU MONEY MANAGER',
-    subtitle:'Cash & Banks - Transactions & Available Balances',
-    summary:[['Total Available Balance',pdfMoney(db.banks.reduce((s,b)=>s+Number(b.balance||0),0))],['Accounts',String(db.banks.length)],['Transactions',String(db.bankTransactions.length)]],
-    headers:['Date','Account / Transaction','Amount','Category','From / To','Status'],
-    widths:[60,138,72,82,108,63],
-    rows:balanceRows.concat(txRows),
-    rowValues:r=>r,
-    emptyText:'No bank transactions or account balances found.',
+    subtitle:'Cash & Banks — Account Balances & Transactions',
+    summary:[
+      ['Total Available Balance',pdfMoney(totalBalance)],
+      ['Accounts',String(db.banks.length)],
+      ['Transactions',String(db.bankTransactions.length)]
+    ],
+
+    // Main table is intentionally empty; the PDF uses two clearly separated
+    // sections below so balances and transactions are not mixed together.
+    headers:[],
+    widths:[],
+    rows:[],
+
+    extraSections:[
+      {
+        title:'1. ACCOUNT BALANCES — EACH ACCOUNT INDIVIDUALLY',
+        headers:['Account','Type','Current Balance'],
+        widths:[245,120,170],
+        rows:balanceRows,
+        rowValues:r=>r
+      },
+      {
+        title:'2. CASH & BANK TRANSACTIONS',
+        headers:['Date','Transaction','Amount','From','To','Note'],
+        widths:[55,105,70,105,105,95],
+        rows:txRows,
+        rowValues:r=>r
+      }
+    ],
+
+    emptyText:'No bank accounts or transactions found.',
     filename:'VIJU-MONEY-MANAGER-Cash-Banks.pdf'
   });
 }
@@ -3160,25 +3208,8 @@ window.addEventListener('DOMContentLoaded',function(){syncOfflineStorageOnStartu
     const all=getExpenses(),q=(document.getElementById('search')?.value||'').toLowerCase(),p=document.getElementById('filterPerson')?.value||'',c=document.getElementById('filterCategory')?.value||'';
     const rows=all.filter(e=>dateKey(e).startsWith(ym)&&(!q||(e.name+' '+e.notes+' '+e.category+' '+e.person).toLowerCase().includes(q))&&(!p||e.person===p)&&(!c||e.category===c));
     const paid=rows.filter(e=>statusOf(e)==='Paid').reduce((s,e)=>s+expenseAmount(e),0),pending=rows.filter(e=>statusOf(e)==='Pending').reduce((s,e)=>s+expenseAmount(e),0),overdue=rows.filter(e=>statusOf(e)==='Overdue').reduce((s,e)=>s+expenseAmount(e),0);
-    const total=paid+pending+overdue;
     const titleMonth=document.getElementById('expenseMonth')?.selectedOptions[0]?.text||new Date(y,m-1).toLocaleString('en',{month:'long'});
-    saveTablePDF({
-      title:'VIJU MONEY MANAGER',
-      subtitle:'Expenses Report — '+titleMonth+' '+y,
-      summary:[
-        ['Total Expenses',pdfMoney(total)],
-        ['Selected Month Paid',pdfMoney(paid)],
-        ['Pending in Month',pdfMoney(pending)],
-        ['Overdue in Month',pdfMoney(overdue)],
-        ['Month Rows',String(rows.length)]
-      ],
-      headers:PDF_EXPENSE_HEADERS,
-      widths:PDF_EXPENSE_WIDTHS,
-      rows:rows.sort((a,b)=>dateKey(b).localeCompare(dateKey(a))),
-      rowValues:expensePdfValues,
-      emptyText:'No expenses found for this selected month.',
-      filename:'VIJU-MONEY-MANAGER-Expenses-'+y+'-'+pad(m)+'.pdf'
-    });
+    saveTablePDF({title:'VIJU MONEY MANAGER',subtitle:'Expenses Report — '+titleMonth+' '+y,summary:[['Selected Month Paid',pdfMoney(paid)],['Pending in Month',pdfMoney(pending)],['Overdue in Month',pdfMoney(overdue)],['Month Rows',String(rows.length)]],headers:PDF_EXPENSE_HEADERS,widths:PDF_EXPENSE_WIDTHS,rows:rows.sort((a,b)=>dateKey(b).localeCompare(dateKey(a))),rowValues:expensePdfValues,emptyText:'No expenses found for this selected month.',filename:'VIJU-MONEY-MANAGER-Expenses-'+y+'-'+pad(m)+'.pdf'});
   };
 
   /* Add a lightweight synchronized Month/Year selector to Upcoming without changing its global date-based calculations. */
