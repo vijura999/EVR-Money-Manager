@@ -1801,15 +1801,15 @@ function createStyledTablePDF(options){
   const drawFooter=()=>{};
   const title=options.title||'VIJU MONEY MANAGER';
   const subtitle=options.subtitle||'';
-  const headers=options.headers||[];
+  let headers=options.headers||[];
   // Keep every table, including its final Status column, within the printable area.
   const requestedWidths=options.widths||headers.map(()=>usable/headers.length);
   const requestedTotal=requestedWidths.reduce((sum,width)=>sum+Number(width||0),0);
   const widthScale=requestedTotal>usable ? usable/requestedTotal : 1;
-  const widths=requestedWidths.map(width=>Number(width||0)*widthScale);
+  let widths=requestedWidths.map(width=>Number(width||0)*widthScale);
   const rows=options.rows||[];
   const summary=options.summary||[];
-  const tableW=widths.reduce((a,b)=>a+b,0);
+  let tableW=widths.reduce((a,b)=>a+b,0);
 
   function drawPageTitle(){
     text(ML,page.y,title,18,true);page.y-=23;
@@ -1886,11 +1886,17 @@ function createStyledTablePDF(options){
       if(page.y<100){newPage();drawPageTitle();}
       page.y-=12;text(ML,page.y,sec.title,11,true);page.y-=16;
       if(sec.headers){
-        const oldHeaders=options.headers,oldWidths=options.widths,oldValues=options.rowValues;
-        options.headers=sec.headers;options.widths=sec.widths||sec.headers.map(()=>usable/sec.headers.length);options.rowValues=sec.rowValues;
+        const oldHeaders=headers,oldWidths=widths,oldTableW=tableW,oldValues=options.rowValues;
+        headers=sec.headers||[];
+        const sectionRequestedWidths=sec.widths||headers.map(()=>usable/headers.length);
+        const sectionRequestedTotal=sectionRequestedWidths.reduce((sum,width)=>sum+Number(width||0),0);
+        const sectionScale=sectionRequestedTotal>usable ? usable/sectionRequestedTotal : 1;
+        widths=sectionRequestedWidths.map(width=>Number(width||0)*sectionScale);
+        tableW=widths.reduce((a,b)=>a+b,0);
+        options.rowValues=sec.rowValues;
         drawTableHeader();
         (sec.rows||[]).forEach(drawRow);
-        options.headers=oldHeaders;options.widths=oldWidths;options.rowValues=oldValues;
+        headers=oldHeaders;widths=oldWidths;tableW=oldTableW;options.rowValues=oldValues;
       }
     });
   }
@@ -3023,26 +3029,43 @@ function renderExpenses(){
 
 // Upcoming and Overdue always use the same global helpers.
 function renderUpcoming(){
-  const upcoming=getUpcomingExpenses();
+  // Upcoming expenses are limited to the selected Month/Year.
+  // Overdue expenses remain global, as before.
+  const {month:selectedMonth,year:selectedYear}=getSharedPeriod();
+  const selectedYM=String(selectedYear)+'-'+String(selectedMonth).padStart(2,'0');
+
+  const all=getExpenses();
+  const upcoming=getUpcomingExpenses()
+    .filter(e=>dueKey(e)&&dueKey(e).startsWith(selectedYM))
+    .sort((a,b)=>dueKey(a).localeCompare(dueKey(b)));
+
   const overdue=getOverdueExpenses();
-  const tomorrowDate=new Date(today()+'T12:00:00');tomorrowDate.setDate(tomorrowDate.getDate()+1);
+
+  const tomorrowDate=new Date(today()+'T12:00:00');
+  tomorrowDate.setDate(tomorrowDate.getDate()+1);
   const tomorrow=tomorrowDate.toISOString().slice(0,10);
+
   const todayPending=upcoming.filter(e=>dueKey(e)===today());
   const tomorrowPending=upcoming.filter(e=>dueKey(e)===tomorrow);
   const futurePending=upcoming.filter(e=>dueKey(e)>tomorrow);
   const nextDate=futurePending[0]?.dueDate||'';
   const nextUpcoming=nextDate?futurePending.filter(e=>dueKey(e)===nextDate):[];
   const laterPending=nextDate?futurePending.filter(e=>dueKey(e)>nextDate):[];
+
   const total=rows=>sumExpenses(rows);
   const block=(title,kind,rows,empty)=>`<section class="upcoming-priority-block"><div class="upcoming-priority-title ${kind}"><span>${title}</span><span class="upcoming-date-tag">${rows.length?rows.length+' expense'+(rows.length===1?'':'s'):''}</span></div>${rows.map(upcomingExpenseCard).join('')||'<div class="upcoming-priority-empty">'+empty+'</div>'}</section>`;
-  // Summary totals are calculated from the same global expense data used by the app.
-  const allExpenses=getExpenses();
+
+  // Selected-month expenses for the Total Expenses card on this page.
+  const selectedMonthExpenses=all.filter(e=>dateKey(e).startsWith(selectedYM));
+
+  // Pending/Upcoming totals now represent only the selected month.
   const pendingOverdue=[...upcoming,...overdue];
   const pendingOverdueTotal=total(upcoming)+total(overdue);
+
   setText('upcomingGrandTotal',money(total(upcoming)));
   setText('upcomingGrandCount',upcoming.length+' expense'+(upcoming.length===1?'':'s'));
-  setText('upcomingAllExpensesTotal',money(total(allExpenses)));
-  setText('upcomingAllExpensesCount',allExpenses.length+' expense'+(allExpenses.length===1?'':'s')+' recorded');
+  setText('upcomingAllExpensesTotal',money(total(selectedMonthExpenses)));
+  setText('upcomingAllExpensesCount',selectedMonthExpenses.length+' expense'+(selectedMonthExpenses.length===1?'':'s')+' recorded');
   setText('upcomingPendingOverdueTotal',money(pendingOverdueTotal));
   setText('upcomingPendingOverdueCount',pendingOverdue.length+' expense'+(pendingOverdue.length===1?'':'s'));
   setText('upcomingOverdueTotal',money(total(overdue)));
@@ -3054,9 +3077,23 @@ function renderUpcoming(){
   setText('nextUpcomingDate',nextDate?'Due '+fmtDate(nextDate):'None scheduled');
   setText('upcomingTotal',upcoming.length+' expenses · '+money(total(upcoming)));
   setText('overdueTotal',overdue.length+' expenses · '+money(total(overdue)));
-  const ul=document.getElementById('upcomingList');if(ul)ul.innerHTML=block('Today — '+fmtDate(today()),'today',todayPending,'No pending expenses due today.')+block('Tomorrow — '+fmtDate(tomorrow),'tomorrow',tomorrowPending,'No pending expenses due tomorrow.')+(nextDate?block('Next upcoming — '+fmtDate(nextDate),'next',nextUpcoming,''):'<section class="upcoming-priority-block"><div class="upcoming-priority-title next">Next upcoming expense</div><div class="upcoming-priority-empty">No future pending expenses are scheduled.</div></section>')+(laterPending.length?block('Later upcoming expenses','',laterPending,''):'');
-  const ol=document.getElementById('overdueList');if(ol)ol.innerHTML=overdue.map(upcomingExpenseCard).join('')||'<div class="empty">No overdue expenses.</div>';
-  const op=document.getElementById('overduePageList');if(op)op.innerHTML=overdue.map(upcomingExpenseCard).join('')||'<div class="empty">No overdue expenses.</div>';
+
+  const ul=document.getElementById('upcomingList');
+  if(ul){
+    ul.innerHTML=
+      block('Today — '+fmtDate(today()),'today',todayPending,'No pending expenses due today.')+
+      block('Tomorrow — '+fmtDate(tomorrow),'tomorrow',tomorrowPending,'No pending expenses due tomorrow.')+
+      (nextDate
+        ? block('Next upcoming — '+fmtDate(nextDate),'next',nextUpcoming,'')
+        : '<section class="upcoming-priority-block"><div class="upcoming-priority-title next">Next upcoming expense</div><div class="upcoming-priority-empty">No future pending expenses are scheduled for '+(document.getElementById('upcomingMonth')?.selectedOptions[0]?.text||'the selected month')+'.</div></section>')+
+      (laterPending.length?block('Later upcoming expenses','',laterPending,''):'');
+  }
+
+  const ol=document.getElementById('overdueList');
+  if(ol)ol.innerHTML=overdue.map(upcomingExpenseCard).join('')||'<div class="empty">No overdue expenses.</div>';
+
+  const op=document.getElementById('overduePageList');
+  if(op)op.innerHTML=overdue.map(upcomingExpenseCard).join('')||'<div class="empty">No overdue expenses.</div>';
 }
 
 // Account summary is also centralized so Dashboard and Cash & Banks never drift.
