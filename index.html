@@ -3118,71 +3118,104 @@ function renderExpenses(){
 
 // Upcoming and Overdue always use the same global helpers.
 function renderUpcoming(){
-  // Pending/Upcoming remains global and date-based.
-  // The Month/Year selector affects the selected-month Total Expenses card;
-  // Overdue remains global as well.
-  const {ym:selectedYM}=selectedYM('upcoming');
+  const monthEl=document.getElementById('upcomingMonth');
+  const yearEl=document.getElementById('upcomingYear');
 
-  const all=getExpenses();
-  const upcoming=getUpcomingExpenses()
-    .slice()
-    .sort((a,b)=>dueKey(a).localeCompare(dueKey(b)));
+  const selectedMonth=Number(monthEl?.value||new Date().getMonth()+1);
+  const selectedYear=Number(yearEl?.value||new Date().getFullYear());
+  const ym=String(selectedYear)+'-'+String(selectedMonth).padStart(2,'0');
 
-  const overdue=getOverdueExpenses();
+  // Read the actual stored expense data directly.
+  const all=Array.isArray(db?.expenses)?db.expenses:[];
+  const todayKey=today();
 
-  const tomorrowDate=new Date(today()+'T12:00:00');
+  // Only Pending expenses whose due date belongs to the selected month.
+  const upcoming=all
+    .filter(e=>statusOf(e)==='Pending')
+    .filter(e=>{
+      const d=String(e?.dueDate||'').slice(0,10);
+      return d && d.startsWith(ym) && d>=todayKey;
+    })
+    .sort((a,b)=>{
+      const ad=String(a?.dueDate||'');
+      const bd=String(b?.dueDate||'');
+      return ad.localeCompare(bd)||dateKey(b).localeCompare(dateKey(a));
+    });
+
+  // Overdue is intentionally global across all months.
+  const overdue=all
+    .filter(e=>statusOf(e)==='Overdue')
+    .sort((a,b)=>dueKey(a).localeCompare(dueKey(b))||dateKey(b).localeCompare(dateKey(a)));
+
+  const tomorrowDate=new Date(todayKey+'T12:00:00');
   tomorrowDate.setDate(tomorrowDate.getDate()+1);
   const tomorrow=tomorrowDate.toISOString().slice(0,10);
 
-  const todayPending=upcoming.filter(e=>dueKey(e)===today());
+  const todayPending=upcoming.filter(e=>dueKey(e)===todayKey);
   const tomorrowPending=upcoming.filter(e=>dueKey(e)===tomorrow);
   const futurePending=upcoming.filter(e=>dueKey(e)>tomorrow);
-  const nextDate=futurePending[0]?.dueDate||'';
+
+  const nextDate=futurePending.length?dueKey(futurePending[0]):'';
   const nextUpcoming=nextDate?futurePending.filter(e=>dueKey(e)===nextDate):[];
   const laterPending=nextDate?futurePending.filter(e=>dueKey(e)>nextDate):[];
 
-  const total=rows=>sumExpenses(rows);
-  const block=(title,kind,rows,empty)=>`<section class="upcoming-priority-block"><div class="upcoming-priority-title ${kind}"><span>${title}</span><span class="upcoming-date-tag">${rows.length?rows.length+' expense'+(rows.length===1?'':'s'):''}</span></div>${rows.map(upcomingExpenseCard).join('')||'<div class="upcoming-priority-empty">'+empty+'</div>'}</section>`;
+  const selectedMonthRows=all.filter(e=>dateKey(e).startsWith(ym));
 
-  // Selected-month expenses for the Total Expenses card on this page.
-  const selectedMonthExpenses=all.filter(e=>dateKey(e).startsWith(selectedYM));
+  const moneyTotal=rows=>rows.reduce((s,e)=>s+expenseAmount(e),0);
 
-  // Pending/Upcoming and Overdue totals remain global.
-  const pendingOverdue=[...upcoming,...overdue];
-  const pendingOverdueTotal=total(upcoming)+total(overdue);
-
-  setText('upcomingGrandTotal',money(total(upcoming)));
-  setText('upcomingGrandCount',upcoming.length+' expense'+(upcoming.length===1?'':'s'));
-  setText('upcomingAllExpensesTotal',money(total(selectedMonthExpenses)));
-  setText('upcomingAllExpensesCount',selectedMonthExpenses.length+' expense'+(selectedMonthExpenses.length===1?'':'s')+' recorded');
-  setText('upcomingPendingOverdueTotal',money(pendingOverdueTotal));
-  setText('upcomingPendingOverdueCount',pendingOverdue.length+' expense'+(pendingOverdue.length===1?'':'s'));
-  setText('upcomingOverdueTotal',money(total(overdue)));
-  setText('todayPendingTotal',money(total(todayPending)));
+  // Support the existing IDs used by the current Upcoming page.
+  setText('todayPendingTotal',money(moneyTotal(todayPending)));
   setText('todayPendingCount',todayPending.length+' expense'+(todayPending.length===1?'':'s'));
-  setText('tomorrowPendingTotal',money(total(tomorrowPending)));
+
+  setText('tomorrowPendingTotal',money(moneyTotal(tomorrowPending)));
   setText('tomorrowPendingCount',tomorrowPending.length+' expense'+(tomorrowPending.length===1?'':'s'));
-  setText('nextUpcomingTotal',money(total(nextUpcoming)));
+
+  setText('nextUpcomingTotal',money(moneyTotal(nextUpcoming)));
   setText('nextUpcomingDate',nextDate?'Due '+fmtDate(nextDate):'None scheduled');
-  setText('upcomingTotal',upcoming.length+' expenses · '+money(total(upcoming)));
-  setText('overdueTotal',overdue.length+' expenses · '+money(total(overdue)));
+
+  setText('upcomingGrandTotal',money(moneyTotal(upcoming)));
+  setText('upcomingGrandCount',upcoming.length+' expense'+(upcoming.length===1?'':'s'));
+
+  setText('upcomingAllExpensesTotal',money(moneyTotal(selectedMonthRows)));
+  setText('upcomingAllExpensesCount',selectedMonthRows.length+' expense'+(selectedMonthRows.length===1?'':'s')+' recorded');
+
+  setText('upcomingPendingOverdueTotal',money(moneyTotal(upcoming)+moneyTotal(overdue)));
+  setText('upcomingPendingOverdueCount',(upcoming.length+overdue.length)+' expense'+(upcoming.length+overdue.length===1?'':'s'));
+
+  setText('upcomingOverdueTotal',money(moneyTotal(overdue)));
+
+  setText('upcomingTotal',upcoming.length+' expenses · '+money(moneyTotal(upcoming)));
+  setText('overdueTotal',overdue.length+' expenses · '+money(moneyTotal(overdue)));
+
+  const block=(title,kind,rows,empty)=>`
+    <section class="upcoming-priority-block">
+      <div class="upcoming-priority-title ${kind}">
+        <span>${title}</span>
+        <span class="upcoming-date-tag">${rows.length?rows.length+' expense'+(rows.length===1?'':'s'):''}</span>
+      </div>
+      ${rows.length?rows.map(upcomingExpenseCard).join(''):'<div class="upcoming-priority-empty">'+empty+'</div>'}
+    </section>`;
 
   const ul=document.getElementById('upcomingList');
   if(ul){
     ul.innerHTML=
-      block('Today — '+fmtDate(today()),'today',todayPending,'No pending expenses due today.')+
+      block('Today — '+fmtDate(todayKey),'today',todayPending,'No pending expenses due today.')+
       block('Tomorrow — '+fmtDate(tomorrow),'tomorrow',tomorrowPending,'No pending expenses due tomorrow.')+
       (nextDate
         ? block('Next upcoming — '+fmtDate(nextDate),'next',nextUpcoming,'')
-        : '<section class="upcoming-priority-block"><div class="upcoming-priority-title next">Next upcoming expense</div><div class="upcoming-priority-empty">No future pending expenses are scheduled for '+(document.getElementById('upcomingMonth')?.selectedOptions[0]?.text||'the selected month')+'.</div></section>')+
+        : '<section class="upcoming-priority-block"><div class="upcoming-priority-title next">Next upcoming expense</div><div class="upcoming-priority-empty">No future pending expenses are scheduled for the selected month.</div></section>')+
       (laterPending.length?block('Later upcoming expenses','',laterPending,''):'');
   }
 
   const ol=document.getElementById('overdueList');
-  if(ol)ol.innerHTML=overdue.map(upcomingExpenseCard).join('')||'<div class="empty">No overdue expenses.</div>';
+  if(ol){
+    ol.innerHTML=overdue.map(upcomingExpenseCard).join('')||'<div class="empty">No overdue expenses.</div>';
+  }
 
   const op=document.getElementById('overduePageList');
-  if(op)op.innerHTML=overdue.map(upcomingExpenseCard).join('')||'<div class="empty">No overdue expenses.</div>';
+  if(op){
+    op.innerHTML=overdue.map(upcomingExpenseCard).join('')||'<div class="empty">No overdue expenses.</div>';
+  }
 }
 
 // Account summary is also centralized so Dashboard and Cash & Banks never drift.
