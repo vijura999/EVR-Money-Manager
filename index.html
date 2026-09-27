@@ -828,7 +828,7 @@ html,body,#application{overscroll-behavior-x:none!important;}
   <div style="display:flex;gap:12px;flex-wrap:wrap">
     <div class="group">
       <label>Month</label>
-      <select id="dashboardMonth" onchange="changeSharedPeriod(this)">
+      <select id="dashboardMonth" onchange="updateDashboardPeriod()">
         <option value="1">January</option><option value="2">February</option>
         <option value="3">March</option><option value="4">April</option>
         <option value="5">May</option><option value="6">June</option>
@@ -843,7 +843,7 @@ html,body,#application{overscroll-behavior-x:none!important;}
 
     <div class="group">
       <label>Year</label>
-      <select id="dashboardYear" onchange="changeSharedPeriod(this)"></select>
+      <select id="dashboardYear" onchange="updateDashboardPeriod()"></select>
     </div>
   </div>
 </div>
@@ -854,12 +854,12 @@ html,body,#application{overscroll-behavior-x:none!important;}
 <h1>2. Expenses <span class="subtle">(All)</span></h1><div class="card">
 <div style="display:flex;justify-content:space-between;align-items:center"><h2>All Expenses</h2><button class="btn primary" onclick="openExpense()">+ Add Expense</button></div><br>
 <div class="expenses-period-selector">
-  <div class="group"><label>Month</label><select id="expenseMonth" onchange="changeSharedPeriod(this)">
+  <div class="group"><label>Month</label><select id="expenseMonth" onchange="renderExpenses()">
     <option value="1">January</option><option value="2">February</option><option value="3">March</option><option value="4">April</option>
     <option value="5">May</option><option value="6">June</option><option value="7">July</option><option value="8">August</option>
     <option value="9">September</option><option value="10">October</option><option value="11">November</option><option value="12">December</option>
   </select></div>
-  <div class="group"><label>Year</label><select id="expenseYear" onchange="changeSharedPeriod(this)"></select></div>
+  <div class="group"><label>Year</label><select id="expenseYear" onchange="renderExpenses()"></select></div>
 </div>
 <div class="filters">
 <div class="group"><label>Search</label><input id="search" oninput="renderExpenses()" placeholder="Search"></div>
@@ -879,9 +879,6 @@ html,body,#application{overscroll-behavior-x:none!important;}
 </div></section>
 
 <section id="upcoming" class="page"><h1>4. Upcoming Expenses <span class="subtle">(by due date)</span></h1>
-<div class="card" style="margin-bottom:14px"><div class="expenses-period-selector" style="margin:0"><div class="group"><label>Month</label><select id="upcomingMonth" onchange="changeSharedPeriod(this)">
-    <option value="1">January</option><option value="2">February</option><option value="3">March</option><option value="4">April</option><option value="5">May</option><option value="6">June</option><option value="7">July</option><option value="8">August</option><option value="9">September</option><option value="10">October</option><option value="11">November</option><option value="12">December</option>
-  </select></div><div class="group"><label>Year</label><select id="upcomingYear" onchange="changeSharedPeriod(this)"></select></div></div></div>
 <div class="stats-grid upcoming-summary">
   <div class="stat"><small>Pending Today</small><strong id="todayPendingTotal">₹0.00</strong><span id="todayPendingCount" class="subtle">0 expenses</span></div>
   <div class="stat"><small>Pending Tomorrow</small><strong id="tomorrowPendingTotal">₹0.00</strong><span id="tomorrowPendingCount" class="subtle">0 expenses</span></div>
@@ -1130,7 +1127,7 @@ function saveDB(){db.updatedAt=new Date().toISOString();localStorage.setItem(KEY
 function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
 function money(n){return '₹'+Number(n||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})}
 function today(){return new Date().toISOString().slice(0,10)}
-function fmtDate(s){if(!s)return '-';const raw=String(s).slice(0,10);if(/^\d{4}-\d{2}-\d{2}$/.test(raw)){const p=raw.split('-');return `${p[2]}-${p[1]}-${p[0]}`;}if(/^\d{2}-\d{2}-\d{4}$/.test(raw))return raw;return s}
+function fmtDate(s){if(!s)return '-';let p=s.split('-');return p.length===3?`${p[2]}-${p[1]}-${p[0]}`:s}
 function getExpenses(){return [...db.expenses].sort((a,b)=>(b.date||'').localeCompare(a.date||''))}
 function statusOf(e){if(e.status==='Paid')return 'Paid';if(e.dueDate&&e.dueDate<today())return 'Overdue';return 'Pending'}
 function toast(t){let x=document.getElementById('toast');x.textContent=t;x.classList.add('show');setTimeout(()=>x.classList.remove('show'),2200)}
@@ -1310,7 +1307,7 @@ function renderExpenses(){
   let a=getExpenses().filter(e=>{
     const haystack=[e.name,e.notes,e.category,e.person,e.payment,e.date,e.dueDate,statusOf(e)]
       .filter(v=>v!==undefined&&v!==null).join(' ').toLowerCase();
-    return dateKey(e).startsWith(ym) &&
+    return (e.date||'').startsWith(ym) &&
       (!q||haystack.includes(q)) &&
       (!p||e.person===p) &&
       (!c||e.category===c) &&
@@ -2500,11 +2497,19 @@ function openOverdueExpenses(){
 }
 
 function initExpensesPeriod(){
-  // Do not reset the user's selected month when navigating back to Expenses.
-  // The shared period is initialized once to the current month and then kept.
-  ensureSharedPeriod();
+  const y=document.getElementById('expenseYear'),m=document.getElementById('expenseMonth');
+  if(!y||!m)return;
+  const now=new Date(),current=now.getFullYear(),currentMonth=now.getMonth()+1;
+  // Always open the Expenses page on the real current month/year.
+  // Do not leave the first <option> selected (which previously caused
+  // August 2016 / other old periods to appear on first load).
+  y.innerHTML='';
+  for(let year=current-10;year<=current+10;year++){
+    y.innerHTML+='<option value="'+year+'">'+year+'</option>';
+  }
+  m.value=String(currentMonth);
+  y.value=String(current);
 }
-
 
 
 // Close the hamburger menu whenever the user taps/clicks outside it.
@@ -2535,103 +2540,35 @@ function saveBankSubTransaction(kind){ensureBanks();let type=kind,from='',to='',
 const _oldRenderDashboard=renderDashboard;
 renderDashboard=function(){_oldRenderDashboard();ensureBanks();const el=document.getElementById('dashboardBankBalance');const cash=db.banks.find(b=>b.id==='cash');const bankTotal=db.banks.filter(b=>b.id!=='cash').reduce((s,b)=>s+Number(b.balance||0),0);if(el)el.textContent=money(bankTotal);const cashEl=document.getElementById('dashboardCashBalance');if(cashEl)cashEl.textContent=money(cash?.balance||0);const m=document.getElementById('dashboardMonth'),y=document.getElementById('dashboardYear');if(m&&y){const now=new Date();if(!m.value)m.value=String(now.getMonth()+1);if(!y.value)y.value=String(now.getFullYear())}};
 const _oldPage=page;
-page=function(id,btn){_oldPage(id,btn);document.querySelectorAll('.bottom-nav button').forEach(b=>b.classList.remove('active'));const map={dashboard:0,expenses:1,upcoming:2,people:3,banks:4,reports:5};if(map[id]!=null){const b=document.querySelectorAll('.bottom-nav button')[map[id]];if(b)b.classList.add('active')}if(id==='banks')syncBankSubSelects();if(id==='dashboard')initDashboardPeriod();if(id==='expenses'){ensureSharedPeriod();renderExpenses();}if(id==='upcoming'){ensureSharedPeriod();renderUpcoming();}};
-window.addEventListener('load',function(){syncBankSubSelects();ensureSharedPeriod();updateDashboardPeriod();renderExpenses();renderUpcoming();});
+page=function(id,btn){_oldPage(id,btn);document.querySelectorAll('.bottom-nav button').forEach(b=>b.classList.remove('active'));const map={dashboard:0,expenses:1,upcoming:2,people:3,banks:4,reports:5};if(map[id]!=null){const b=document.querySelectorAll('.bottom-nav button')[map[id]];if(b)b.classList.add('active')}if(id==='banks')syncBankSubSelects();if(id==='dashboard')initDashboardPeriod();if(id==='expenses'){initExpensesPeriod();renderExpenses();}};
+window.addEventListener('load',function(){syncBankSubSelects();});
 
-// ===== SHARED MONTH / YEAR PERIOD =====
-// One selected month/year drives Dashboard, Expenses and Upcoming Expenses.
-// Default = the real current month. Changing it never changes the global
-// Pending/Upcoming or Overdue obligations; those remain date-based/global.
-function populatePeriodYears(id){
-  const el=document.getElementById(id); if(!el)return;
-  const now=new Date(), current=now.getFullYear();
-  const old=el.value;
-  el.innerHTML='';
-  for(let year=current-10;year<=current+10;year++)el.innerHTML+='<option value="'+year+'">'+year+'</option>';
-  if(old && [...el.options].some(o=>o.value===old))el.value=old;
-}
-function ensureSharedPeriod(){
-  const now=new Date();
-  if(!window.vijuSelectedPeriod){
-    let saved=null;
-    try{saved=JSON.parse(sessionStorage.getItem('vijuSelectedPeriod')||'null')}catch(e){}
-    const valid=saved&&Number(saved.month)>=1&&Number(saved.month)<=12&&Number(saved.year)>=2000&&Number(saved.year)<=2100;
-    window.vijuSelectedPeriod=valid?{month:Number(saved.month),year:Number(saved.year)}:{month:now.getMonth()+1,year:now.getFullYear()};
-  }
-  ['dashboardYear','expenseYear','upcomingYear'].forEach(populatePeriodYears);
-  const ids=[['dashboardMonth','dashboardYear'],['expenseMonth','expenseYear'],['upcomingMonth','upcomingYear']];
-  ids.forEach(([m,y])=>{
-    const me=document.getElementById(m),ye=document.getElementById(y);
-    if(me)me.value=String(window.vijuSelectedPeriod.month);
-    if(ye)ye.value=String(window.vijuSelectedPeriod.year);
-  });
-}
-function getSharedPeriod(){
-  ensureSharedPeriod();
-  return {month:Number(window.vijuSelectedPeriod.month),year:Number(window.vijuSelectedPeriod.year)};
-}
-function changeSharedPeriod(source){
-  // Read the value directly from the selector that was changed, then update
-  // the single shared month/year state. Never reset it back to the current month.
-  const el = (source && source.nodeType===1) ? source : null;
-  const id = el ? el.id : '';
-  let period = window.vijuSelectedPeriod || null;
-  if(!period){
-    const now=new Date();
-    period={month:now.getMonth()+1,year:now.getFullYear()};
-  }
-  let month=Number(period.month), year=Number(period.year);
-  if(id==='expenseMonth' || id==='dashboardMonth' || id==='upcomingMonth') month=Number(el.value);
-  if(id==='expenseYear' || id==='dashboardYear' || id==='upcomingYear') year=Number(el.value);
-  if(!(month>=1&&month<=12) || !(year>=2000&&year<=2100)) return;
-
-  window.vijuSelectedPeriod={month:month,year:year};
-  try{sessionStorage.setItem('vijuSelectedPeriod',JSON.stringify(window.vijuSelectedPeriod));}catch(e){}
-
-  // Synchronize all three selectors immediately.
-  [['dashboardMonth','dashboardYear'],['expenseMonth','expenseYear'],['upcomingMonth','upcomingYear']].forEach(([mid,yid])=>{
-    const m=document.getElementById(mid), y=document.getElementById(yid);
-    if(m)m.value=String(month);
-    if(y)y.value=String(year);
-  });
-
-  updateDashboardPeriod();
-  renderExpenses();
-  renderUpcoming();
-}
-
+// Final dashboard behavior: latest/current month by default; selecting Dashboard Period changes only the dashboard month.
 function updateDashboardPeriod(){
-  const {month:m,year:y}=getSharedPeriod();
+  const m=Number(document.getElementById('dashboardMonth')?.value||new Date().getMonth()+1);
+  const y=Number(document.getElementById('dashboardYear')?.value||new Date().getFullYear());
   const ym=String(y)+'-'+String(m).padStart(2,'0');
-  const rows=getExpenses().filter(e=>dateKey(e).startsWith(ym)).sort((a,b)=>dateKey(b).localeCompare(dateKey(a)));
-  const total=sumExpenses(rows);
-  const paid=sumExpenses(rows.filter(e=>statusOf(e)==='Paid'));
-  // Pending and overdue cards are GLOBAL, not limited to the selected month.
-  const upcoming=getUpcomingExpenses();
-  const overdue=getOverdueExpenses();
-  const pending=sumExpenses(upcoming);
-  const overdueTotal=sumExpenses(overdue);
+  const rows=getExpenses().filter(e=>(e.date||'').startsWith(ym)).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  const total=rows.reduce((s,e)=>s+Number(e.amount||0),0);
+  const paid=rows.filter(e=>statusOf(e)==='Paid').reduce((s,e)=>s+Number(e.amount||0),0);
+  const pending=rows.filter(e=>statusOf(e)==='Pending').reduce((s,e)=>s+Number(e.amount||0),0);
+  const overdue=rows.filter(e=>statusOf(e)==='Overdue').reduce((s,e)=>s+Number(e.amount||0),0);
   const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v};
-  set('totalAmount',money(total));
-  set('paidAmount',money(paid));
-  set('pendingAmount',money(pending));
-  set('overdueAmount',money(overdueTotal));
-  set('peopleCount',db.people.length);
+  set('totalAmount',money(total));set('paidAmount',money(paid));set('pendingAmount',money(pending));set('overdueAmount',money(overdue));set('peopleCount',db.people.length);
   const recent=document.getElementById('recent');
   if(recent)recent.innerHTML=rows.slice(0,8).map(e=>`<div class="manage-row"><span><b>${esc(e.name)}</b><br><small>${fmtDate(e.date)} · ${esc(e.person)}</small></span><b>${money(e.amount)}</b></div>`).join('')||'<div class="empty">No transactions for this month.</div>';
-  ensureBanks();
-  const cash=db.banks.find(b=>b.id==='cash');
-  const bankTotal=db.banks.filter(b=>b.id!=='cash').reduce((s,b)=>s+Number(b.balance||0),0);
-  set('dashboardCashBalance',money(cash?.balance||0));set('dashboardBankBalance',money(bankTotal));
-  set('dashboardUpcomingTotal',money(pending+overdueTotal));
+  ensureBanks();const cash=db.banks.find(b=>b.id==='cash');const bankTotal=db.banks.filter(b=>b.id!=='cash').reduce((s,b)=>s+Number(b.balance||0),0);set('dashboardCashBalance',money(cash?.balance||0));set('dashboardBankBalance',money(bankTotal));
+  const upcomingTotal=getExpenses().filter(e=>statusOf(e)==='Pending'&&e.dueDate&&e.dueDate>=today()).reduce((s,e)=>s+Number(e.amount||0),0);const overdueTotal=getExpenses().filter(e=>statusOf(e)==='Overdue').reduce((s,e)=>s+Number(e.amount||0),0);set('dashboardUpcomingTotal',money(upcomingTotal+overdueTotal));
   const d=new Date();d.setHours(0,0,0,0);const end=new Date(d);end.setDate(end.getDate()+7);const endS=end.toISOString().slice(0,10);
-  const up=upcoming.filter(e=>dueKey(e)<endS);
-  const dashUp=document.getElementById('dashboardUpcoming');
-  if(dashUp)dashUp.innerHTML=up.map(e=>`<div class="manage-row"><span><b>${esc(e.name)}</b><br><small>Due ${fmtDate(e.dueDate)}</small></span><b>${money(e.amount)}</b></div>`).join('')||'<div class="empty">No expenses due in the next 7 days.</div>';
-  const ut=document.getElementById('upcomingTotal');if(ut)ut.textContent=up.length+' expenses · '+money(sumExpenses(up));
+  const up=getExpenses().filter(e=>statusOf(e)==='Pending'&&e.dueDate&&e.dueDate>=today()&&e.dueDate<endS).sort((a,b)=>(a.dueDate||'').localeCompare(b.dueDate||''));
+  const dashUp=document.getElementById('dashboardUpcoming');if(dashUp)dashUp.innerHTML=up.map(e=>`<div class="manage-row"><span><b>${esc(e.name)}</b><br><small>Due ${fmtDate(e.dueDate)}</small></span><b>${money(e.amount)}</b></div>`).join('')||'<div class="empty">No expenses due in the next 7 days.</div>';
+  const ut=document.getElementById('upcomingTotal');if(ut)ut.textContent=up.length+' expenses · '+money(up.reduce((s,e)=>s+Number(e.amount||0),0));
 }
-function initDashboardPeriod(){ensureSharedPeriod();updateDashboardPeriod();}
-
+function initDashboardPeriod(){
+  const y=document.getElementById('dashboardYear'),m=document.getElementById('dashboardMonth');if(!y||!m)return;
+  const now=new Date(),current=now.getFullYear();y.innerHTML='';for(let year=current-10;year<=current+10;year++)y.innerHTML+='<option value="'+year+'">'+year+'</option>';
+  m.value=String(now.getMonth()+1);y.value=String(current);updateDashboardPeriod();
+}
 // Mark a pending expense as paid. If its payment account is already known,
 // debit that account immediately. Otherwise open the editor so the user can
 // choose the exact Cash / Bank account before the debit is committed.
@@ -2755,20 +2692,8 @@ function expenseAmount(e){
   return Number.isFinite(n)?n:0;
 }
 
-// Normalize dates from both supported formats: YYYY-MM-DD (HTML date input)
-// and DD-MM-YYYY (older saved records). All filtering/sorting uses ISO.
-function normalizeDateKey(value){
-  const s=String(value||'').trim().slice(0,10);
-  if(!s)return '';
-  if(/^\d{4}-\d{2}-\d{2}$/.test(s))return s;
-  if(/^\d{2}-\d{2}-\d{4}$/.test(s)){
-    const [d,m,y]=s.split('-');
-    return `${y}-${m}-${d}`;
-  }
-  return s;
-}
-function dateKey(e){return normalizeDateKey(e&&e.date)}
-function dueKey(e){return normalizeDateKey(e&&e.dueDate)}
+function dateKey(e){return String(e&&e.date||'').slice(0,10)}
+function dueKey(e){return String(e&&e.dueDate||'').slice(0,10)}
 
 function getUpcomingExpenses(){
   const t=today();
@@ -2860,9 +2785,12 @@ function updateDashboardPeriod(){
 }
 
 function initDashboardPeriod(){
-  // Initialize once; never overwrite a month selected by the user.
-  ensureSharedPeriod();
-  updateDashboardPeriod();
+  const y=document.getElementById('dashboardYear'),m=document.getElementById('dashboardMonth');
+  if(!y||!m)return;
+  const now=new Date(),current=now.getFullYear();
+  y.innerHTML='';
+  for(let year=current-10;year<=current+10;year++)y.innerHTML+='<option value="'+year+'">'+year+'</option>';
+  m.value=String(now.getMonth()+1);y.value=String(current);updateDashboardPeriod();
 }
 
 function renderDashboard(){
@@ -2879,8 +2807,9 @@ function renderExpenses(){
   const c=document.getElementById('filterCategory')?.value||'';
   const st=document.getElementById('filterStatus')?.value||'';
 
-  ensureSharedPeriod();
-  const {month:selectedMonth,year:selectedYear}=getSharedPeriod();
+  const now=new Date();
+  const selectedMonth=Number(document.getElementById('expenseMonth')?.value)||now.getMonth()+1;
+  const selectedYear=Number(document.getElementById('expenseYear')?.value)||now.getFullYear();
   const ym=String(selectedYear)+'-'+String(selectedMonth).padStart(2,'0');
   const all=getExpenses();
 
@@ -3002,10 +2931,8 @@ function renderExpenses(){
       (laterPending.length?priorityBlock('Later upcoming expenses','',laterPending,''):'');
   }
 
-  // Completed transactions follow the selected month too.
-  // Overdue/Pending cards above remain global, but this historical Paid table
-  // must never show transactions from other months.
-  const paidTransactions=monthRows
+  // Completed transactions remain the full Paid table, as in the original app.
+  const paidTransactions=all
     .filter(e=>statusOf(e)==='Paid')
     .sort((x,y)=>dateKey(y).localeCompare(dateKey(x)));
 
@@ -3061,16 +2988,13 @@ function renderUpcoming(){
   const total=rows=>sumExpenses(rows);
   const block=(title,kind,rows,empty)=>`<section class="upcoming-priority-block"><div class="upcoming-priority-title ${kind}"><span>${title}</span><span class="upcoming-date-tag">${rows.length?rows.length+' expense'+(rows.length===1?'':'s'):''}</span></div>${rows.map(upcomingExpenseCard).join('')||'<div class="upcoming-priority-empty">'+empty+'</div>'}</section>`;
   // Summary totals are calculated from the same global expense data used by the app.
-  const {month:selectedMonth,year:selectedYear}=getSharedPeriod();
-  const selectedYM=String(selectedYear)+'-'+String(selectedMonth).padStart(2,'0');
   const allExpenses=getExpenses();
-  const selectedMonthExpenses=allExpenses.filter(e=>dateKey(e).startsWith(selectedYM));
   const pendingOverdue=[...upcoming,...overdue];
   const pendingOverdueTotal=total(upcoming)+total(overdue);
   setText('upcomingGrandTotal',money(total(upcoming)));
   setText('upcomingGrandCount',upcoming.length+' expense'+(upcoming.length===1?'':'s'));
-  setText('upcomingAllExpensesTotal',money(total(selectedMonthExpenses)));
-  setText('upcomingAllExpensesCount',selectedMonthExpenses.length+' expense'+(selectedMonthExpenses.length===1?'':'s')+' recorded');
+  setText('upcomingAllExpensesTotal',money(total(allExpenses)));
+  setText('upcomingAllExpensesCount',allExpenses.length+' expense'+(allExpenses.length===1?'':'s')+' recorded');
   setText('upcomingPendingOverdueTotal',money(pendingOverdueTotal));
   setText('upcomingPendingOverdueCount',pendingOverdue.length+' expense'+(pendingOverdue.length===1?'':'s'));
   setText('upcomingOverdueTotal',money(total(overdue)));
@@ -3124,6 +3048,137 @@ function markExpensePaid(id){
 
 // Initialize the offline mirror after the document is ready.
 window.addEventListener('DOMContentLoaded',function(){syncOfflineStorageOnStartup();});
+
+
+/* ===== FINAL MONTH-SCOPE PATCH — EXPENSES ONLY ===== */
+(function(){
+  const PERIOD_KEY='viju_expense_period_v1';
+  const pad=n=>String(n).padStart(2,'0');
+  function readPeriod(){
+    try{const x=JSON.parse(localStorage.getItem(PERIOD_KEY)||'null');if(x&&x.month&&x.year)return {month:Number(x.month),year:Number(x.year)};}catch(e){}
+    const d=new Date();return {month:d.getMonth()+1,year:d.getFullYear()};
+  }
+  function writePeriod(month,year){
+    localStorage.setItem(PERIOD_KEY,JSON.stringify({month:Number(month),year:Number(year)}));
+  }
+  function syncPeriod(source){
+    const d=source==='dashboard'?'dashboard':'expense';
+    const m=document.getElementById(d+'Month'),y=document.getElementById(d+'Year');
+    if(!m||!y)return;
+    const month=Number(m.value),year=Number(y.value); if(!month||!year)return;
+    writePeriod(month,year);
+    const other=d==='dashboard'?'expense':'dashboard';
+    const om=document.getElementById(other+'Month'),oy=document.getElementById(other+'Year');
+    if(om)om.value=String(month); if(oy)oy.value=String(year);
+    if(d==='dashboard') updateDashboardPeriod(); else renderExpenses();
+  }
+
+  const _initDash=initDashboardPeriod;
+  initDashboardPeriod=function(){
+    _initDash();
+    const p=readPeriod(),m=document.getElementById('dashboardMonth'),y=document.getElementById('dashboardYear');
+    if(m&&y){m.value=String(p.month);y.value=String(p.year);}
+    const em=document.getElementById('expenseMonth'),ey=document.getElementById('expenseYear');
+    if(em&&ey){em.value=String(p.month);ey.value=String(p.year);}
+    updateDashboardPeriod();
+  };
+
+  const _initExp=initExpensesPeriod;
+  initExpensesPeriod=function(){
+    _initExp();
+    const p=readPeriod(),m=document.getElementById('expenseMonth'),y=document.getElementById('expenseYear');
+    if(m&&y){m.value=String(p.month);y.value=String(p.year);}
+    const dm=document.getElementById('dashboardMonth'),dy=document.getElementById('dashboardYear');
+    if(dm&&dy){dm.value=String(p.month);dy.value=String(p.year);}
+  };
+
+  window.addEventListener('DOMContentLoaded',function(){
+    const p=readPeriod();
+    const dm=document.getElementById('dashboardMonth'),dy=document.getElementById('dashboardYear');
+    const em=document.getElementById('expenseMonth'),ey=document.getElementById('expenseYear');
+    if(dm&&dy){dm.value=String(p.month);dy.value=String(p.year);}
+    if(em&&ey){em.value=String(p.month);ey.value=String(p.year);}
+    ['dashboardMonth','dashboardYear'].forEach(id=>document.getElementById(id)?.addEventListener('change',()=>syncPeriod('dashboard')));
+    ['expenseMonth','expenseYear'].forEach(id=>document.getElementById(id)?.addEventListener('change',()=>syncPeriod('expense')));
+  });
+
+  function selectedYM(prefix){
+    const p=readPeriod();
+    const m=Number(document.getElementById(prefix+'Month')?.value||p.month);
+    const y=Number(document.getElementById(prefix+'Year')?.value||p.year);
+    return {m,y,ym:String(y)+'-'+pad(m)};
+  }
+
+  /* Dashboard: Total = Paid in selected month + global Pending/Upcoming + global Overdue. */
+  updateDashboardPeriod=function(){
+    const {ym,m,y}=selectedYM('dashboard');
+    const all=getExpenses();
+    const rows=all.filter(e=>dateKey(e).startsWith(ym)).sort((a,b)=>dateKey(b).localeCompare(dateKey(a)));
+    const paid=rows.filter(e=>statusOf(e)==='Paid').reduce((s,e)=>s+expenseAmount(e),0);
+    const upcoming=getUpcomingExpenses(),overdue=getOverdueExpenses();
+    const pending=upcoming.reduce((s,e)=>s+expenseAmount(e),0), overdueTotal=overdue.reduce((s,e)=>s+expenseAmount(e),0);
+    const total=paid+pending+overdueTotal;
+    const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v};
+    set('totalAmount',money(total));set('paidAmount',money(paid));set('pendingAmount',money(pending));set('overdueAmount',money(overdueTotal));set('peopleCount',db.people.length);
+    const recent=document.getElementById('recent');
+    if(recent)recent.innerHTML=rows.slice(0,8).map(e=>`<div class="manage-row"><span><b>${esc(e.name)}</b><br><small>${fmtDate(e.date)} · ${esc(e.person)}</small></span><b>${money(expenseAmount(e))}</b></div>`).join('')||'<div class="empty">No transactions for this month.</div>';
+    ensureBanks();const cash=db.banks.find(b=>b.id==='cash');const bankTotal=db.banks.filter(b=>b.id!=='cash').reduce((s,b)=>s+Number(b.balance||0),0);
+    set('dashboardCashBalance',money(cash?.balance||0));set('dashboardBankBalance',money(bankTotal));set('dashboardUpcomingTotal',money(pending+overdueTotal));
+    const d=new Date();d.setHours(0,0,0,0);const end=new Date(d);end.setDate(end.getDate()+7);const endS=end.toISOString().slice(0,10);
+    const up=upcoming.filter(e=>dueKey(e)<endS).slice(0,8);
+    const dashUp=document.getElementById('dashboardUpcoming');if(dashUp)dashUp.innerHTML=up.map(e=>`<div class="manage-row"><span><b>${esc(e.name)}</b><br><small>Due ${fmtDate(e.dueDate)}</small></span><b>${money(e.amount)}</b></div>`).join('')||'<div class="empty">No expenses due in the next 7 days.</div>';
+    const ut=document.getElementById('upcomingTotal');if(ut)ut.textContent=upcoming.length+' expenses · '+money(pending);
+  };
+
+  /* Expenses page: month rows are selected-month; status cards for pending/overdue stay global. */
+  renderExpenses=function(){
+    const q=(document.getElementById('search')?.value||'').trim().toLowerCase();
+    const p=document.getElementById('filterPerson')?.value||'',c=document.getElementById('filterCategory')?.value||'',st=document.getElementById('filterStatus')?.value||'';
+    const {ym}=selectedYM('expense'),all=getExpenses();
+    const matches=e=>{const hay=[e.name,e.notes,e.category,e.person,e.payment,e.date,e.dueDate,statusOf(e)].filter(v=>v!=null).join(' ').toLowerCase();return (!q||hay.includes(q))&&(!p||e.person===p)&&(!c||e.category===c)&&(!st||statusOf(e)===st)};
+    const monthRows=all.filter(e=>dateKey(e).startsWith(ym)&&matches(e)).sort((a,b)=>dateKey(b).localeCompare(dateKey(a)));
+    const paid=monthRows.filter(e=>statusOf(e)==='Paid').reduce((s,e)=>s+expenseAmount(e),0);
+    const scoped=all.filter(e=>{const hay=[e.name,e.notes,e.category,e.person,e.payment,e.date,e.dueDate,statusOf(e)].filter(v=>v!=null).join(' ').toLowerCase();return (!q||hay.includes(q))&&(!p||e.person===p)&&(!c||e.category===c)});
+    const upcoming=scoped.filter(e=>statusOf(e)==='Pending'&&dueKey(e)&&dueKey(e)>=today()).sort((a,b)=>dueKey(a).localeCompare(dueKey(b)));
+    const overdue=scoped.filter(e=>statusOf(e)==='Overdue').sort((a,b)=>dueKey(a).localeCompare(dueKey(b)));
+    const pendingTotal=upcoming.reduce((s,e)=>s+expenseAmount(e),0),overdueTotal=overdue.reduce((s,e)=>s+expenseAmount(e),0),total=paid+pendingTotal+overdueTotal;
+    const summary=document.getElementById('expensesSummary');
+    if(summary)summary.innerHTML=`<div class="stat"><b>Total</b><strong>${money(total)}</strong><span class="subtle">Paid selected month + Pending/Upcoming + Overdue</span></div><div class="stat dashboard-stat-click" onclick="showExpenseStatus('Paid')"><b>Paid</b><strong>${money(paid)}</strong><span class="subtle">Selected month</span></div><div class="stat dashboard-stat-click" onclick="dashboardGo('upcoming')"><b>Pending / Upcoming</b><strong>${money(pendingTotal)}</strong><span class="subtle">All upcoming</span></div><div class="stat dashboard-stat-click" onclick="dashboardGo('overdue')"><b>Overdue</b><strong>${money(overdueTotal)}</strong><span class="subtle">All overdue</span></div><div class="stat dashboard-stat-click" onclick="dashboardGo('upcoming')"><b>Total Upcoming Expenses</b><strong>${money(pendingTotal+overdueTotal)}</strong><span class="subtle">Pending / Upcoming + Overdue</span></div><div class="stat"><b>Paid Expenses</b><strong>${monthRows.filter(e=>statusOf(e)==='Paid').length}</strong><span class="subtle">Selected month</span></div>`;
+    const tomorrowDate=new Date(today()+'T12:00:00');tomorrowDate.setDate(tomorrowDate.getDate()+1);const tomorrow=tomorrowDate.toISOString().slice(0,10);
+    const todayPending=upcoming.filter(e=>dueKey(e)===today()),tomorrowPending=upcoming.filter(e=>dueKey(e)===tomorrow),future=upcoming.filter(e=>dueKey(e)>tomorrow),nextDate=future[0]?dueKey(future[0]):'';
+    const block=(title,kind,rows,empty)=>`<section class="upcoming-priority-block"><div class="upcoming-priority-title ${kind}"><span>${title}</span><span class="upcoming-date-tag">${rows.length?rows.length+' expense'+(rows.length===1?'':'s'):''}</span></div>${rows.map(upcomingExpenseCard).join('')||'<div class="upcoming-priority-empty">'+empty+'</div>'}</section>`;
+    const priority=document.getElementById('expensesPriority');if(priority)priority.innerHTML=block('Today — '+fmtDate(today()),'today',todayPending,'No pending expenses due today.')+block('Tomorrow — '+fmtDate(tomorrow),'tomorrow',tomorrowPending,'No pending expenses due tomorrow.')+(nextDate?block('Next upcoming — '+fmtDate(nextDate),'next',future.filter(e=>dueKey(e)===nextDate),''):'<section class="upcoming-priority-block"><div class="upcoming-priority-title next">Next upcoming expense</div><div class="upcoming-priority-empty">No future pending expenses are scheduled.</div></section>');
+    const paidTransactions=all.filter(e=>statusOf(e)==='Paid'&&dateKey(e).startsWith(ym)).sort((a,b)=>dateKey(b).localeCompare(dateKey(a)));
+    const paidTable=document.getElementById('paidExpensesTable');
+    if(paidTable)paidTable.innerHTML=paidTransactions.length?`<table class="completed-transactions-table"><thead><tr><th>Date</th><th>Expense Name</th><th>Description</th><th>Person</th><th>Category</th><th>Payment / Account</th><th>Amount</th><th>Status / Actions</th></tr></thead><tbody>${paidTransactions.map(e=>{const account=findExpenseAccount(e),payment=account?.name||e.payment||'-';return `<tr><td>${fmtDate(e.date)}</td><td><b>${esc(e.name)}</b></td><td class="description-cell">${esc(e.notes||'No description')}</td><td>${esc(e.person||'-')}</td><td>${esc(e.category||'-')}</td><td>${esc(payment)}</td><td class="amount-cell">${money(expenseAmount(e))}</td><td><span class="status paid">Paid</span><div class="action-cell"><button class="btn light" onclick="openExpense('${e.id}')">Edit</button><button class="btn danger" onclick="deleteExpense('${e.id}')">Delete</button></div></td></tr>`}).join('')}</tbody></table>`:'<div class="empty">No completed expenses for the selected month.</div>';
+    const tb=document.getElementById('expenseTable');if(tb)tb.innerHTML=monthRows.length?monthRows.map(expenseCard).join(''):'<div class="empty">No expenses found for the selected filters.</div>';
+  };
+
+  /* Expenses PDF: selected month only. */
+  saveExpensesPDF=function(){
+    const {m,y,ym}=selectedYM('expense');
+    const all=getExpenses(),q=(document.getElementById('search')?.value||'').toLowerCase(),p=document.getElementById('filterPerson')?.value||'',c=document.getElementById('filterCategory')?.value||'';
+    const rows=all.filter(e=>dateKey(e).startsWith(ym)&&(!q||(e.name+' '+e.notes+' '+e.category+' '+e.person).toLowerCase().includes(q))&&(!p||e.person===p)&&(!c||e.category===c));
+    const paid=rows.filter(e=>statusOf(e)==='Paid').reduce((s,e)=>s+expenseAmount(e),0),pending=rows.filter(e=>statusOf(e)==='Pending').reduce((s,e)=>s+expenseAmount(e),0),overdue=rows.filter(e=>statusOf(e)==='Overdue').reduce((s,e)=>s+expenseAmount(e),0);
+    const titleMonth=document.getElementById('expenseMonth')?.selectedOptions[0]?.text||new Date(y,m-1).toLocaleString('en',{month:'long'});
+    saveTablePDF({title:'VIJU MONEY MANAGER',subtitle:'Expenses Report — '+titleMonth+' '+y,summary:[['Selected Month Paid',pdfMoney(paid)],['Pending in Month',pdfMoney(pending)],['Overdue in Month',pdfMoney(overdue)],['Month Rows',String(rows.length)]],headers:PDF_EXPENSE_HEADERS,widths:PDF_EXPENSE_WIDTHS,rows:rows.sort((a,b)=>dateKey(b).localeCompare(dateKey(a))),rowValues:expensePdfValues,emptyText:'No expenses found for this selected month.',filename:'VIJU-MONEY-MANAGER-Expenses-'+y+'-'+pad(m)+'.pdf'});
+  };
+
+  /* Add a lightweight synchronized Month/Year selector to Upcoming without changing its global date-based calculations. */
+  window.addEventListener('DOMContentLoaded',function(){
+    const page=document.getElementById('upcoming'); if(!page||document.getElementById('upcomingMonth'))return;
+    const h=page.querySelector('h1'); if(!h)return;
+    const box=document.createElement('div');box.className='expenses-period-selector';box.style.margin='0 0 14px';
+    const months=['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const p=readPeriod();
+    box.innerHTML='<div class="group"><label>Month</label><select id="upcomingMonth">'+months.map((x,i)=>`<option value="${i+1}">${x}</option>`).join('')+'</select></div><div class="group"><label>Year</label><select id="upcomingYear"></select></div>';
+    h.insertAdjacentElement('afterend',box);
+    const uy=document.getElementById('upcomingYear'),um=document.getElementById('upcomingMonth');const cy=new Date().getFullYear();for(let yr=cy-10;yr<=cy+10;yr++)uy.innerHTML+='<option value="'+yr+'">'+yr+'</option>';
+    um.value=String(p.month);uy.value=String(p.year);
+    const sync=()=>{writePeriod(um.value,uy.value);const dm=document.getElementById('dashboardMonth'),dy=document.getElementById('dashboardYear'),em=document.getElementById('expenseMonth'),ey=document.getElementById('expenseYear');if(dm)dm.value=um.value;if(dy)dy.value=uy.value;if(em)em.value=um.value;if(ey)ey.value=uy.value;updateDashboardPeriod();renderExpenses();};
+    um.addEventListener('change',sync);uy.addEventListener('change',sync);
+  });
+})();
 
 </script>
 <script>
