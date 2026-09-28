@@ -1481,7 +1481,7 @@ function upcomingExpenseCard(e){
     <div class="manage-row" style="align-items:center;gap:12px;flex-wrap:wrap">
       <div style="flex:1;min-width:220px">
         <b>${esc(e.name)}</b><br>
-        <small>${esc(e.person)} · ${esc(e.category)} · Due ${fmtDate(e.dueDate)} · ${esc(e.payment)}</small><br>
+        <small>${esc(e.person)} · ${esc(e.category)} · Due ${fmtDate(e.dueDate||e.date)} · ${esc(e.payment)}</small><br>
         <span class="status ${statusOf(e).toLowerCase()}">${statusOf(e)}</span>
         ${e.notes ? `<br><small>${esc(e.notes)}</small>` : ''}
       </div>
@@ -3121,28 +3121,36 @@ function renderUpcoming(){
   const monthEl=document.getElementById('upcomingMonth');
   const yearEl=document.getElementById('upcomingYear');
 
-  const selectedMonth=Number(monthEl?.value||new Date().getMonth()+1);
-  const selectedYear=Number(yearEl?.value||new Date().getFullYear());
-  const ym=String(selectedYear)+'-'+String(selectedMonth).padStart(2,'0');
+  // Default: ALL future pending expenses across ALL months.
+  // If a month is selected, restrict the Upcoming list to that month/year.
+  const selectedMonth=monthEl?.value || '';
+  const selectedYear=yearEl?.value || '';
+  const hasMonth=selectedMonth!=='';
+  const hasYear=selectedYear!=='';
 
-  // Read the actual stored expense data directly.
   const all=Array.isArray(db?.expenses)?db.expenses:[];
   const todayKey=today();
 
-  // Only Pending expenses whose due date belongs to the selected month.
-  const upcoming=all
+  // An upcoming expense uses dueDate when present; otherwise its date.
+  // This keeps expenses such as "Chit" visible even when dueDate is blank.
+  const upcomingDate=e=>String(e?.dueDate||e?.date||'').slice(0,10);
+
+  let upcoming=all
     .filter(e=>statusOf(e)==='Pending')
     .filter(e=>{
-      const d=String(e?.dueDate||'').slice(0,10);
-      return d && d.startsWith(ym) && d>=todayKey;
+      const d=upcomingDate(e);
+      if(!d || d<todayKey)return false;
+      if(hasMonth && d.slice(5,7)!==String(selectedMonth).padStart(2,'0'))return false;
+      if(hasYear && d.slice(0,4)!==String(selectedYear))return false;
+      return true;
     })
     .sort((a,b)=>{
-      const ad=String(a?.dueDate||'');
-      const bd=String(b?.dueDate||'');
+      const ad=upcomingDate(a);
+      const bd=upcomingDate(b);
       return ad.localeCompare(bd)||dateKey(b).localeCompare(dateKey(a));
     });
 
-  // Overdue is intentionally global across all months.
+  // Overdue remains separate and global, as on the existing page.
   const overdue=all
     .filter(e=>statusOf(e)==='Overdue')
     .sort((a,b)=>dueKey(a).localeCompare(dueKey(b))||dateKey(b).localeCompare(dateKey(a)));
@@ -3151,19 +3159,26 @@ function renderUpcoming(){
   tomorrowDate.setDate(tomorrowDate.getDate()+1);
   const tomorrow=tomorrowDate.toISOString().slice(0,10);
 
-  const todayPending=upcoming.filter(e=>dueKey(e)===todayKey);
-  const tomorrowPending=upcoming.filter(e=>dueKey(e)===tomorrow);
-  const futurePending=upcoming.filter(e=>dueKey(e)>tomorrow);
+  const todayPending=upcoming.filter(e=>upcomingDate(e)===todayKey);
+  const tomorrowPending=upcoming.filter(e=>upcomingDate(e)===tomorrow);
+  const futurePending=upcoming.filter(e=>upcomingDate(e)>tomorrow);
 
-  const nextDate=futurePending.length?dueKey(futurePending[0]):'';
-  const nextUpcoming=nextDate?futurePending.filter(e=>dueKey(e)===nextDate):[];
-  const laterPending=nextDate?futurePending.filter(e=>dueKey(e)>nextDate):[];
+  const nextDate=futurePending.length?upcomingDate(futurePending[0]):'';
+  const nextUpcoming=nextDate?futurePending.filter(e=>upcomingDate(e)===nextDate):[];
+  const laterPending=nextDate?futurePending.filter(e=>upcomingDate(e)>nextDate):[];
 
-  const selectedMonthRows=all.filter(e=>dateKey(e).startsWith(ym));
+  const selectedMonthRows=(hasMonth||hasYear)
+    ? all.filter(e=>{
+        const d=dateKey(e);
+        if(!d)return false;
+        if(hasMonth && d.slice(5,7)!==String(selectedMonth).padStart(2,'0'))return false;
+        if(hasYear && d.slice(0,4)!==String(selectedYear))return false;
+        return true;
+      })
+    : upcoming;
 
   const moneyTotal=rows=>rows.reduce((s,e)=>s+expenseAmount(e),0);
 
-  // Support the existing IDs used by the current Upcoming page.
   setText('todayPendingTotal',money(moneyTotal(todayPending)));
   setText('todayPendingCount',todayPending.length+' expense'+(todayPending.length===1?'':'s'));
 
@@ -3177,10 +3192,13 @@ function renderUpcoming(){
   setText('upcomingGrandCount',upcoming.length+' expense'+(upcoming.length===1?'':'s'));
 
   setText('upcomingAllExpensesTotal',money(moneyTotal(selectedMonthRows)));
-  setText('upcomingAllExpensesCount',selectedMonthRows.length+' expense'+(selectedMonthRows.length===1?'':'s')+' recorded');
+  setText('upcomingAllExpensesCount',
+    selectedMonthRows.length+' expense'+(selectedMonthRows.length===1?'':'s')+
+    (hasMonth||hasYear?' recorded':' upcoming'));
 
   setText('upcomingPendingOverdueTotal',money(moneyTotal(upcoming)+moneyTotal(overdue)));
-  setText('upcomingPendingOverdueCount',(upcoming.length+overdue.length)+' expense'+(upcoming.length+overdue.length===1?'':'s'));
+  setText('upcomingPendingOverdueCount',
+    (upcoming.length+overdue.length)+' expense'+(upcoming.length+overdue.length===1?'':'s'));
 
   setText('upcomingOverdueTotal',money(moneyTotal(overdue)));
 
@@ -3203,7 +3221,7 @@ function renderUpcoming(){
       block('Tomorrow — '+fmtDate(tomorrow),'tomorrow',tomorrowPending,'No pending expenses due tomorrow.')+
       (nextDate
         ? block('Next upcoming — '+fmtDate(nextDate),'next',nextUpcoming,'')
-        : '<section class="upcoming-priority-block"><div class="upcoming-priority-title next">Next upcoming expense</div><div class="upcoming-priority-empty">No future pending expenses are scheduled for the selected month.</div></section>')+
+        : '<section class="upcoming-priority-block"><div class="upcoming-priority-title next">Next upcoming expense</div><div class="upcoming-priority-empty">No future pending expenses are scheduled.</div></section>')+
       (laterPending.length?block('Later upcoming expenses','',laterPending,''):'');
   }
 
@@ -3371,21 +3389,39 @@ window.addEventListener('DOMContentLoaded',function(){syncOfflineStorageOnStartu
     saveTablePDF({title:'VIJU MONEY MANAGER',subtitle:'Expenses Report — '+titleMonth+' '+y,summary:[['Selected Month Paid',pdfMoney(paid)],['Pending in Month',pdfMoney(pending)],['Overdue in Month',pdfMoney(overdue)],['Month Rows',String(rows.length)]],headers:PDF_EXPENSE_HEADERS,widths:PDF_EXPENSE_WIDTHS,rows:rows.sort((a,b)=>dateKey(b).localeCompare(dateKey(a))),rowValues:expensePdfValues,emptyText:'No expenses found for this selected month.',filename:'VIJU-MONEY-MANAGER-Expenses-'+y+'-'+pad(m)+'.pdf'});
   };
 
-  /* Add a synchronized Month/Year selector to Upcoming. Pending/Upcoming remains
-   global/date-based; the selected month controls the page's selected-month total. */
+  /* Upcoming selector: default is ALL future expenses.
+     Selecting Month + Year filters Upcoming to that month only. */
   window.addEventListener('DOMContentLoaded',function(){
     const page=document.getElementById('upcoming'); if(!page||document.getElementById('upcomingMonth'))return;
     const h=page.querySelector('h1'); if(!h)return;
-    const box=document.createElement('div');box.className='expenses-period-selector';box.style.margin='0 0 14px';
+
+    const box=document.createElement('div');
+    box.className='expenses-period-selector';
+    box.style.margin='0 0 14px';
+
     const months=['January','February','March','April','May','June','July','August','September','October','November','December'];
-    const p=readPeriod();
-    box.innerHTML='<div class="group"><label>Month</label><select id="upcomingMonth">'+months.map((x,i)=>`<option value="${i+1}">${x}</option>`).join('')+'</select></div><div class="group"><label>Year</label><select id="upcomingYear"></select></div>';
+    box.innerHTML='<div class="group"><label>Month</label><select id="upcomingMonth"><option value="">All Months</option>'+
+      months.map((x,i)=>`<option value="${i+1}">${x}</option>`).join('')+
+      '</select></div><div class="group"><label>Year</label><select id="upcomingYear"><option value="">All Years</option></select></div>';
+
     h.insertAdjacentElement('afterend',box);
-    const uy=document.getElementById('upcomingYear'),um=document.getElementById('upcomingMonth');const cy=new Date().getFullYear();for(let yr=cy-10;yr<=cy+10;yr++)uy.innerHTML+='<option value="'+yr+'">'+yr+'</option>';
-    um.value=String(p.month);uy.value=String(p.year);renderUpcoming();
-    const sync=()=>{writePeriod(um.value,uy.value);const dm=document.getElementById('dashboardMonth'),dy=document.getElementById('dashboardYear'),em=document.getElementById('expenseMonth'),ey=document.getElementById('expenseYear');if(dm)dm.value=um.value;if(dy)dy.value=uy.value;if(em)em.value=um.value;if(ey)ey.value=uy.value;updateDashboardPeriod();renderExpenses();renderUpcoming();};
-    um.addEventListener('change',sync);uy.addEventListener('change',sync);
-  });
+
+    const uy=document.getElementById('upcomingYear');
+    const um=document.getElementById('upcomingMonth');
+    const cy=new Date().getFullYear();
+    for(let yr=cy-10;yr<=cy+10;yr++){
+      uy.innerHTML+='<option value="'+yr+'">'+yr+'</option>';
+    }
+
+    // Required default: all future expenses, all months.
+    um.value='';
+    uy.value='';
+    renderUpcoming();
+
+    const sync=()=>{renderUpcoming();};
+    um.addEventListener('change',sync);
+    uy.addEventListener('change',sync);
+  }); 
 })();
 
 </script>
