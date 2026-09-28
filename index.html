@@ -767,6 +767,193 @@ html,body,#application{overscroll-behavior-x:none!important;}
   .expense-card-actions .btn{width:100%;min-width:0}
 }
 </style>
+
+<style id="evr-upcoming-status-colors">
+/* Upcoming page status colours — visual only */
+#upcoming .upcoming-summary .stat:nth-child(1),
+#upcoming .upcoming-summary .stat:nth-child(2),
+#upcoming .upcoming-summary .stat:nth-child(3),
+#upcoming .upcoming-summary .stat:nth-child(4){
+  background:#fff7e6!important;
+  border-left-color:#f59e0b!important;
+}
+#upcoming .upcoming-summary .stat:nth-child(1) strong,
+#upcoming .upcoming-summary .stat:nth-child(2) strong,
+#upcoming .upcoming-summary .stat:nth-child(3) strong,
+#upcoming .upcoming-summary .stat:nth-child(4) strong{color:#9a6700!important}
+#upcoming .upcoming-summary .stat:nth-child(5){
+  background:#eefbf3!important;
+  border-left-color:#16a34a!important;
+}
+#upcoming .upcoming-summary .stat:nth-child(5) strong{color:#08783b!important}
+#upcoming .upcoming-summary .stat:nth-child(6),
+#upcoming .upcoming-summary .stat:nth-child(7){
+  background:#fff0f0!important;
+  border-left-color:#dc2626!important;
+}
+#upcoming .upcoming-summary .stat:nth-child(6) strong,
+#upcoming .upcoming-summary .stat:nth-child(7) strong{color:#b00000!important}
+
+/* Upcoming expense cards: light orange */
+#upcoming #upcomingList .manage-row{
+  background:#fff8e8!important;
+  border-color:#f6dfae!important;
+  border-left:4px solid #f59e0b!important;
+}
+
+/* Overdue cards: light red */
+#upcoming #overdueList .manage-row,
+#overdue #overduePageList .manage-row{
+  background:#fff0f0!important;
+  border-color:#f2caca!important;
+  border-left:4px solid #dc2626!important;
+}
+
+/* Paid transaction cards elsewhere: light green */
+.expense-card-item:has(.status.paid){
+  background:#eefbf3!important;
+  border-color:#ccebd8!important;
+  border-left:4px solid #16a34a!important;
+}
+</style>
+
+<style id="evr-all-pages-status-colors">
+/* ===== EVR STATUS COLOURS — ALL PAGES / VISUAL ONLY ===== */
+/* Pending / upcoming = light orange */
+.manage-row:has(.status.pending),
+.expense-card-item:has(.status.pending),
+.dashboard-upcoming-card:has(.status.pending){
+  background:#fff8e8!important;
+  border-color:#f6dfae!important;
+  border-left:4px solid #f59e0b!important;
+}
+
+/* Paid / completed = light green */
+.manage-row:has(.status.paid),
+.expense-card-item:has(.status.paid),
+.dashboard-upcoming-card:has(.status.paid){
+  background:#eefbf3!important;
+  border-color:#ccebd8!important;
+  border-left:4px solid #16a34a!important;
+}
+
+/* Overdue = light red */
+.manage-row:has(.status.overdue),
+.expense-card-item:has(.status.overdue),
+.dashboard-upcoming-card:has(.status.overdue){
+  background:#fff0f0!important;
+  border-color:#f2caca!important;
+  border-left:4px solid #dc2626!important;
+}
+
+/* Keep status badges consistent everywhere */
+.status.pending{background:#fff1cd!important;color:#935d00!important}
+.status.paid{background:#d8f7e5!important;color:#08783b!important}
+.status.overdue{background:#ffe0e0!important;color:#b00000!important}
+
+/* Expense/report table rows that contain an explicit status badge */
+tr:has(.status.pending){background:#fffaf0}
+tr:has(.status.paid){background:#f3fcf6}
+tr:has(.status.overdue){background:#fff5f5}
+</style>
+
+
+<style id="evr-all-pages-colour-system">
+/* ===== EVR COLOUR SYSTEM — ALL PAGES / VISUAL ONLY ===== */
+/* The same status colours are used everywhere: Paid = green, Upcoming/Pending = orange, Overdue = red. */
+
+/* Expense/status cards wherever they are rendered */
+.manage-row:has(.status.pending),
+.expense-card-item:has(.status.pending),
+.dashboard-upcoming-card:has(.status.pending){
+  background:#fff8e8!important;
+  border-color:#f6dfae!important;
+  border-left:4px solid #f59e0b!important;
+}
+.manage-row:has(.status.paid),
+.expense-card-item:has(.status.paid),
+.dashboard-upcoming-card:has(.status.paid){
+  background:#eefbf3!important;
+  border-color:#ccebd8!important;
+  border-left:4px solid #16a34a!important;
+}
+.manage-row:has(.status.overdue),
+.expense-card-item:has(.status.overdue),
+.dashboard-upcoming-card:has(.status.overdue){
+  background:#fff0f0!important;
+  border-color:#f2caca!important;
+  border-left:4px solid #dc2626!important;
+}
+
+/* Expense page summary cards */
+#expensesSummary .stat:nth-child(2){background:#eefbf3!important;border-color:#ccebd8!important;border-left-color:#16a34a!important}
+#expensesSummary .stat:nth-child(3){background:#fff8e8!important;border-color:#f6dfae!important;border-left-color:#f59e0b!important}
+#expensesSummary .stat:nth-child(4){background:#fff0f0!important;border-color:#f2caca!important;border-left-color:#dc2626!important}
+#expensesSummary .stat:nth-child(5){background:#fff8e8!important;border-color:#f6dfae!important;border-left-color:#f59e0b!important}
+#expensesSummary .stat:nth-child(6){background:#eefbf3!important;border-color:#ccebd8!important;border-left-color:#16a34a!important}
+
+/* Dashboard status cards */
+#dashboard .dashboard-stats-icons .stat:nth-child(2){background:#eefbf3!important;border-color:#ccebd8!important}
+#dashboard .dashboard-stats-icons .stat:nth-child(3),
+#dashboard .dashboard-stats-icons .stat:nth-child(8){background:#fff8e8!important;border-color:#f6dfae!important}
+#dashboard .dashboard-stats-icons .stat:nth-child(4){background:#fff0f0!important;border-color:#f2caca!important}
+
+/* Upcoming page summary cards */
+#upcoming .upcoming-summary .stat:nth-child(1),
+#upcoming .upcoming-summary .stat:nth-child(2),
+#upcoming .upcoming-summary .stat:nth-child(3),
+#upcoming .upcoming-summary .stat:nth-child(4),
+#upcoming .upcoming-summary .stat:nth-child(5),
+#upcoming .upcoming-summary .stat:nth-child(6),
+#upcoming .upcoming-summary .stat:nth-child(7){
+  border-width:1px 1px 1px 4px!important;
+}
+#upcoming .upcoming-summary .stat:nth-child(1),
+#upcoming .upcoming-summary .stat:nth-child(2),
+#upcoming .upcoming-summary .stat:nth-child(3),
+#upcoming .upcoming-summary .stat:nth-child(4),
+#upcoming .upcoming-summary .stat:nth-child(5),
+#upcoming .upcoming-summary .stat:nth-child(6){
+  background:#fff8e8!important;border-color:#f6dfae!important;border-left-color:#f59e0b!important;
+}
+#upcoming .upcoming-summary .stat:nth-child(7){
+  background:#fff0f0!important;border-color:#f2caca!important;border-left-color:#dc2626!important;
+}
+
+/* Overdue page */
+#overdue .card{background:#fff8f8!important;border-color:#f2caca!important}
+#overdue .card h2{color:#a61b1b!important}
+
+/* People / Categories: clean section accents, while individual status rows keep their status colour */
+#people>.card,#categories>.card{border-top:4px solid #7c3aed!important;background:#fbf9ff!important}
+#people>.card h2,#categories>.card h2{color:#5b21b6!important}
+
+/* Reports: neutral blue report cards with a consistent professional accent */
+#reports>.card{border-top:4px solid #2563eb!important;background:#f8fbff!important}
+#reports>.card h2{color:#1d4ed8!important}
+#reports .report-stat{background:#eef5ff!important;border-left:3px solid #2563eb!important}
+
+/* Cash & Banks: blue for bank information, green for cash/positive balances */
+#banks .accounts-summary-card{background:#f8fbff!important;border-color:#dbe7fb!important}
+#banks .summary-bank .summary-value{color:#1769e8!important}
+#banks .summary-cash .summary-value{color:#0eaa61!important}
+#banks .summary-total .summary-value{color:#6d28d9!important}
+#banks .accounts-card,#banks .account-management,#banks .bank-transactions-card{background:#fbfcff!important}
+
+/* Backup: blue information cards; destructive card stays red */
+#backup>.card{background:#f8fbff!important;border-top:4px solid #2563eb!important}
+#backup>.card:last-child{background:#fff5f5!important;border-top-color:#dc2626!important}
+
+/* Tables use the same status colours as cards */
+tr:has(.status.pending){background:#fffaf0!important}
+tr:has(.status.paid){background:#f3fcf6!important}
+tr:has(.status.overdue){background:#fff5f5!important}
+
+/* Status badges */
+.status.pending{background:#fff1cd!important;color:#935d00!important}
+.status.paid{background:#d8f7e5!important;color:#08783b!important}
+.status.overdue{background:#ffe0e0!important;color:#b00000!important}
+</style>
 </head>
 <body>
 
