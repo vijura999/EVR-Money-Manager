@@ -2248,7 +2248,27 @@ function reportRowsForCategory(){
   return rows;
 }
 function periodPDF(){const rows=reportData();saveTablePDF({title:'VIJU MONEY MANAGER',subtitle:reportTitle(),headers:PDF_EXPENSE_HEADERS,widths:PDF_EXPENSE_WIDTHS,summary:[['Total',pdfMoney(rows.reduce((s,e)=>s+Number(e.amount||0),0))],['Expenses',String(rows.length)],['Average',pdfMoney(rows.length?rows.reduce((s,e)=>s+Number(e.amount||0),0)/rows.length:0)]],rows,rowValues:expensePdfValues,filename:'VIJU-MONEY-MANAGER-'+document.getElementById('reportType').value+'-report.pdf'});}
-function personPDF(){const person=document.getElementById('personReportPerson')?.value;if(!person)return alert('Select a person first.');const rows=reportRowsForPerson();saveTablePDF({title:'VIJU MONEY MANAGER',subtitle:'Person Report - '+person,headers:PDF_EXPENSE_HEADERS,widths:PDF_EXPENSE_WIDTHS,summary:[['Total',pdfMoney(rows.reduce((s,e)=>s+Number(e.amount||0),0))],['Expenses',String(rows.length)]],rows,rowValues:expensePdfValues,emptyText:'No expenses found for this person.',filename:'VIJU-MONEY-MANAGER-Person-'+person.replace(/[^a-z0-9_-]+/gi,'-')+'.pdf'});}
+function personPDF(){
+  const person=document.getElementById('personReportPerson')?.value;
+  if(!person)return alert('Select a person first.');
+  const type=document.getElementById('personReportType')?.value||'all';
+  const rows=reportRowsForPerson();
+  let periodLabel='All Time';
+  if(type==='daily') periodLabel='Daily - '+fmtDate(document.getElementById('personReportDate')?.value||'');
+  if(type==='monthly') periodLabel='Monthly - '+(document.getElementById('personReportMonth')?.selectedOptions[0]?.text||'')+' '+(document.getElementById('personReportYear')?.value||'');
+  if(type==='yearly') periodLabel='Yearly - '+(document.getElementById('personReportYear')?.value||'');
+  saveTablePDF({
+    title:'VIJU MONEY MANAGER',
+    subtitle:'Person Report - '+person+' | '+periodLabel,
+    headers:PDF_EXPENSE_HEADERS,
+    widths:PDF_EXPENSE_WIDTHS,
+    summary:[['Total',pdfMoney(rows.reduce((s,e)=>s+Number(e.amount||0),0))],['Expenses',String(rows.length)]],
+    rows,
+    rowValues:expensePdfValues,
+    emptyText:'No expenses found for this person.',
+    filename:'VIJU-MONEY-MANAGER-Person-'+person.replace(/[^a-z0-9_-]+/gi,'-')+'.pdf'
+  });
+}
 function categoryPDF(){const category=document.getElementById('categoryReportCategory')?.value;if(!category)return alert('Select a category first.');const rows=reportRowsForCategory();saveTablePDF({title:'VIJU MONEY MANAGER',subtitle:'Category Report - '+category,headers:PDF_EXPENSE_HEADERS,widths:PDF_EXPENSE_WIDTHS,summary:[['Total',pdfMoney(rows.reduce((s,e)=>s+Number(e.amount||0),0))],['Expenses',String(rows.length)]],rows,rowValues:expensePdfValues,emptyText:'No expenses found for this category.',filename:'VIJU-MONEY-MANAGER-Category-'+category.replace(/[^a-z0-9_-]+/gi,'-')+'.pdf'});}
 function upcomingReportData(){return getExpenses().filter(e=>statusOf(e)==='Pending'&&e.dueDate&&e.dueDate>=today()).sort((a,b)=>(a.dueDate||'').localeCompare(b.dueDate||''));}
 function upcomingPDF(){const rows=upcomingReportData();saveTablePDF({title:'VIJU MONEY MANAGER',subtitle:'Upcoming Expenses Report',headers:PDF_EXPENSE_HEADERS,widths:PDF_EXPENSE_WIDTHS,summary:[['Total Due',pdfMoney(rows.reduce((s,e)=>s+Number(e.amount||0),0))],['Expenses',String(rows.length)],['Next Due',rows[0]?fmtDate(rows[0].dueDate):'-']],rows,rowValues:expensePdfValues,emptyText:'No upcoming expenses.',filename:'VIJU-MONEY-MANAGER-Upcoming-Expenses.pdf'});}
