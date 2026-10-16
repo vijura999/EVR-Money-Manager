@@ -3450,8 +3450,11 @@ function exportJSON(){
         expenses:Array.isArray(db.expenses)?db.expenses:[],
         people:Array.isArray(db.people)?db.people:[],
         categories:Array.isArray(db.categories)?db.categories:[],
+        // Keep both current-app and backup-file names for round-trip compatibility.
         banks:Array.isArray(db.banks)?db.banks:[],
-        bankTransactions:Array.isArray(db.bankTransactions)?db.bankTransactions:[]
+        accounts:Array.isArray(db.banks)?db.banks:[],
+        bankTransactions:Array.isArray(db.bankTransactions)?db.bankTransactions:[],
+        transactions:Array.isArray(db.bankTransactions)?db.bankTransactions:[]
       }
     };
 
@@ -3506,15 +3509,43 @@ function importJSON(){
         (Array.isArray(source.items)?source.items:null);
       const people=Array.isArray(source.people)?source.people:null;
       const categories=Array.isArray(source.categories)?source.categories:null;
-      const banks=Array.isArray(source.banks)?source.banks:
+      // The uploaded backup uses data.accounts and data.transactions.
+      // This app uses db.banks and db.bankTransactions. Accept either schema.
+      const rawAccounts=Array.isArray(source.banks)?source.banks:
         (Array.isArray(source.accounts)?source.accounts:null);
-      const bankTransactions=Array.isArray(source.bankTransactions)?source.bankTransactions:
+      const rawTransactions=Array.isArray(source.bankTransactions)?source.bankTransactions:
         (Array.isArray(source.transactions)?source.transactions:[]);
+      const banks=rawAccounts===null?null:rawAccounts.map((account,index)=>({
+        ...account,
+        id:String(account.id),
+        name:String(account.name||('Account '+(index+1))),
+        balance:Number(account.balance||0),
+        openingBalance:Number(account.openingBalance??0)
+      }));
+      const bankTransactions=rawTransactions.map((transaction,index)=>({
+        ...transaction,
+        id:String(transaction.id??('tx_import_'+index)),
+        date:String(transaction.date||today()),
+        type:String(transaction.type||'transfer').toLowerCase(),
+        from:String(transaction.from??transaction.fromAccountId??''),
+        to:String(transaction.to??transaction.toAccountId??''),
+        fromName:String(transaction.fromName??transaction.fromAccountName??''),
+        toName:String(transaction.toName??transaction.toAccountName??''),
+        amount:Number(transaction.amount||0),
+        note:String(transaction.note??transaction.notes??'')
+      }));
 
       if(expenses===null&&people===null&&categories===null&&banks===null&&
          !Array.isArray(source.bankTransactions)&&!Array.isArray(source.transactions)){
         throw new Error('No supported VIJU MONEY MANAGER backup data found.');
       }
+
+      // Normalize legacy transaction labels, but do not replay transactions against
+      // balances: the backup's account balances are already saved totals.
+      bankTransactions.forEach(transaction=>{
+        if(transaction.type==='cash-bank')transaction.type='cashbank';
+        if(transaction.type==='withdrawal')transaction.type='atm';
+      });
 
       const validId=value=>(typeof value==='string'&&value.trim()!=='')||
         (typeof value==='number'&&Number.isFinite(value));
@@ -3549,7 +3580,7 @@ function importJSON(){
       validateRecords(bankTransactions,'bank transaction',record=>
         record&&typeof record==='object'&&!Array.isArray(record)&&
         validId(record.id)&&isText(record.date)&&
-        ['transfer','deposit','cashbank','atm','adjust'].includes(record.type)&&
+        ['transfer','deposit','cashbank','cash-bank','atm','withdrawal','adjust'].includes(record.type)&&
         validAmount(record.amount)&&Number(record.amount)>0&&
         optionalText(record,['from','to','fromName','toName','note']));
 
