@@ -3269,7 +3269,7 @@ function renderBanks(){
       const toName=t.toName||(db.banks.find(b=>b.id===t.to)?.name)||'-';
       const type=typeLabels[t.type]||String(t.type||'Bank Transaction');
       const note=[t.note||'',suspicious?'⚠️ Please verify unusually large amount':'' ].filter(Boolean).join(' · ');
-      return `<tr><td>${fmtDate(t.date)}</td><td>${esc(type)}</td><td>${esc(fromName)}</td><td>${esc(toName)}</td><td>${money(amount)}</td><td>${esc(note)}</td><td><button class="btn light" onclick="editBankTransaction('${String(t.id).replace(/'/g, '')}')">Edit</button></td></tr>`;
+      return `<tr><td>${fmtDate(t.date)}</td><td>${esc(type)}</td><td>${esc(fromName)}</td><td>${esc(toName)}</td><td>${money(amount)}</td><td>${esc(note)}</td><td><button class="btn light" onclick="window.editBankTransaction(${JSON.stringify(String(t.id))})">Edit</button></td></tr>`;
     }).join('')||'<tr><td colspan="6" class="empty">No bank transactions.</td></tr>';
   }
 }
@@ -3326,6 +3326,8 @@ function editBankTransaction(id){
   if(typeof syncBankSubSelects==='function')syncBankSubSelects();
   toast('Bank transaction updated');
 }
+// Explicit global export so Edit buttons work on hosted/mobile browsers.
+window.editBankTransaction = editBankTransaction;
 
 // Final paid action: debit exactly the selected/known account and persist offline.
 function markExpensePaid(id){
