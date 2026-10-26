@@ -5065,67 +5065,7 @@ updateDashboardPeriod();
 
 </script>
 
-<style>
-/* Local sign-in gate: phone + password, with optional device biometrics/passkey. */
-#evr-auth-gate{position:fixed;inset:0;z-index:10000;display:none;align-items:center;justify-content:center;padding:22px;background:linear-gradient(155deg,#103f40,#092c30 65%,#061e22);color:#193a3a;font-family:Arial,Helvetica,sans-serif}
-#evr-auth-gate.evr-auth-visible{display:flex}
-.evr-auth-card{width:min(100%,410px);padding:28px 24px 24px;background:#fbfaf5;border:1px solid #e4e4d8;border-radius:26px;box-shadow:0 18px 55px #001a1a55}
-.evr-auth-brand{display:flex;align-items:center;gap:12px;margin-bottom:24px}.evr-auth-mark{width:58px;height:58px;display:grid;place-items:center;border-radius:17px;background:#f5f1e5;border:2px solid #d9bb76;font-family:Georgia,serif;font-size:34px;color:#174546}.evr-auth-title{font-size:20px;font-weight:800;letter-spacing:2px}.evr-auth-sub{font-size:10px;letter-spacing:2px;margin-top:4px;color:#617775}.evr-auth-card h1{font-size:25px;margin:0 0 8px;color:#173d3d}.evr-auth-help{font-size:13px;line-height:1.5;color:#687a76;margin:0 0 20px}.evr-auth-field{display:block;font-size:12px;font-weight:700;color:#34514e;margin:12px 0 6px}.evr-auth-input{width:100%;min-height:48px;padding:12px 13px;border:1px solid #d6dfd8;border-radius:12px;background:#fff;font-size:16px;color:#193a3a}.evr-auth-btn{width:100%;min-height:48px;margin-top:14px;border:0;border-radius:13px;background:#12484a;color:#fff;font-size:15px;font-weight:800}.evr-auth-btn.secondary{background:#e9f0eb;color:#164547;border:1px solid #d2dfd6}.evr-auth-msg{min-height:18px;margin-top:12px;font-size:12px;line-height:1.4;color:#a13e2c}.evr-auth-note{font-size:10px;line-height:1.45;color:#7b8983;margin-top:17px}
 
-/* Dashboard improvements: prominent spending amount and available balances */
-.phone-balance-label{font-size:15px!important;letter-spacing:1.55px!important;font-weight:800!important}
-.phone-total strong{font-size:clamp(38px,10vw,47px)!important;line-height:1.08!important;letter-spacing:-1.15px!important}
-.dashboard-available-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:12px 0 16px}
-.dashboard-available-card{min-width:0;display:flex;align-items:center;gap:10px;text-align:left;padding:14px 12px;border-radius:17px;border:1px solid #dfe9e3;background:#fffefa;color:#183c3d;box-shadow:0 3px 12px rgba(18,63,57,.07)}
-.dashboard-available-card .available-icon{width:38px;height:38px;min-width:38px;border-radius:12px;display:grid;place-items:center;font-size:20px;font-weight:900;background:#e1f3e9;color:#188363}
-.dashboard-available-card.bank-available .available-icon{background:#dff2f2;color:#147d80}
-.available-copy{min-width:0;display:flex;flex-direction:column;gap:5px}
-.available-copy small{font-size:11px;font-weight:750;color:#667c75;line-height:1.2}
-.available-copy strong{font-size:clamp(15px,4vw,19px);font-weight:850;line-height:1.15;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
-@media(max-width:380px){.dashboard-available-row{gap:7px}.dashboard-available-card{padding:11px 8px;gap:7px}.dashboard-available-card .available-icon{width:32px;height:32px;min-width:32px}.available-copy small{font-size:10px}.available-copy strong{font-size:14px}.phone-total strong{font-size:clamp(35px,9.2vw,42px)!important}}
-
-</style>
-<div id="evr-auth-gate" role="dialog" aria-modal="true" aria-labelledby="evr-auth-heading">
- <div class="evr-auth-card">
-  <div class="evr-auth-brand"><div class="evr-auth-mark">V</div><div><div class="evr-auth-title">EVR</div><div class="evr-auth-sub">MONEY MANAGER</div></div></div>
-  <h1 id="evr-auth-heading">Secure your money</h1>
-  <p class="evr-auth-help" id="evr-auth-description">Set up sign-in to protect access to this app on this device.</p>
-  <div id="evr-auth-form"></div><div class="evr-auth-msg" id="evr-auth-message" role="status" aria-live="polite"></div>
-  <p class="evr-auth-note">Your financial records are encrypted on this device using AES-256-GCM. Use your password to unlock data. Biometrics are an additional device check where supported; this browser may still require your encryption password.</p>
- </div>
-</div>
-<script>
-(()=>{
- 'use strict';
- const KEY_AUTH='evrLocalAuth.v1';
- const gate=document.getElementById('evr-auth-gate'), form=document.getElementById('evr-auth-form'), msg=document.getElementById('evr-auth-message'), desc=document.getElementById('evr-auth-description'), heading=document.getElementById('evr-auth-heading');
- if(!gate||!form||!window.localStorage)return;
- let config=null, mode='';
- const b64u=buf=>{const a=new Uint8Array(buf);let s='';for(const x of a)s+=String.fromCharCode(x);return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')};
- const fromB64u=s=>{s=s.replace(/-/g,'+').replace(/_/g,'/');while(s.length%4)s+='=';const raw=atob(s),a=new Uint8Array(raw.length);for(let i=0;i<raw.length;i++)a[i]=raw.charCodeAt(i);return a};
- const randomBytes=n=>{const a=new Uint8Array(n);crypto.getRandomValues(a);return a};
- async function hashPassword(password,salt){const data=new TextEncoder().encode(salt+'|'+password);return b64u(await crypto.subtle.digest('SHA-256',data))}
- function show(){gate.classList.add('evr-auth-visible');document.body.style.overflow='hidden'}
- function hide(){gate.classList.remove('evr-auth-visible');document.body.style.overflow=''}
- function say(t){msg.textContent=t||''}
- function field(id,label,type,autocomplete,placeholder=''){return `<label class="evr-auth-field" for="${id}">${label}</label><input class="evr-auth-input" id="${id}" type="${type}" autocomplete="${autocomplete}" placeholder="${placeholder}" required>`}
- function renderSetup(){mode='setup';heading.textContent='Create your sign-in';desc.textContent='Choose a phone number and a strong password for this device.';form.innerHTML=field('evr-phone','Phone number','tel','tel','+91…')+field('evr-password','Password (at least 8 characters)','password','new-password','Create a password')+field('evr-password2','Confirm password','password','new-password','Enter it again')+'<button class="evr-auth-btn" id="evr-auth-submit">Save and open app</button>';document.getElementById('evr-auth-submit').onclick=setup;}
- function renderLogin(){mode='login';heading.textContent='Welcome back';desc.textContent='Unlock your money manager with your password or set up Face ID / Touch ID.';form.innerHTML=field('evr-login-phone','Phone number','tel','username','Your saved phone number')+field('evr-login-password','Password','password','current-password','Your password')+'<button class="evr-auth-btn" id="evr-auth-submit">Unlock with password</button>'+(window.PublicKeyCredential&&navigator.credentials?'<button class="evr-auth-btn secondary" id="evr-auth-bio">'+(config&&config.credentialId?'Unlock with Face ID / Touch ID':'Enable Face ID / Touch ID')+'</button>':'')+'<button class="evr-auth-btn secondary" id="evr-auth-forgot">Reset local sign-in</button>';document.getElementById('evr-auth-submit').onclick=login;if(document.getElementById('evr-auth-bio'))document.getElementById('evr-auth-bio').onclick=()=>{if(config&&config.credentialId)biometricLogin();else registerBiometrics().then(()=>{if(config&&config.credentialId)renderLogin()})};document.getElementById('evr-auth-forgot').onclick=()=>{if(confirm('Reset sign-in on this device? This removes the local login only, not your expenses or accounts. Anyone with device access could then set a new password.')){localStorage.removeItem(KEY_AUTH);config=null;renderSetup();say('Create a new local sign-in. Your app data will remain.')}};}
- async function setup(){say('');const phone=document.getElementById('evr-phone').value.trim(),pw=document.getElementById('evr-password').value,pw2=document.getElementById('evr-password2').value;if(phone.replace(/\D/g,'').length<7){say('Enter a valid phone number.');return}if(pw.length<8){say('Use a password with at least 8 characters.');return}if(pw!==pw2){say('Passwords do not match.');return}try{await unlockOrMigrateEVRData(pw);const salt=b64u(randomBytes(16));config={phone,salt,passwordHash:await hashPassword(pw,salt),credentialId:null,credentialUserId:b64u(randomBytes(16))};localStorage.setItem(KEY_AUTH,JSON.stringify(config));say('Encrypted storage enabled.');hide();setTimeout(offerBiometrics,120)}catch(e){console.error(e);say(e.message||'Could not safely encrypt existing data. No data was intentionally deleted. Check browser storage and try again.')}}
- async function login(){say('');const phone=document.getElementById('evr-login-phone').value.trim(),pw=document.getElementById('evr-login-password').value;if(phone!==config.phone){say('Phone number does not match.');return}try{if(await hashPassword(pw,config.salt)!==config.passwordHash){say('Incorrect password. Try again.');return}await unlockOrMigrateEVRData(pw);hide()}catch(e){console.error(e);say(e.message||'Could not decrypt your data. Wrong password or damaged data; nothing was changed.')}}
- async function offerBiometrics(){if(!window.PublicKeyCredential||!navigator.credentials||!window.isSecureContext)return;if(!confirm('Would you like to enable Face ID / Touch ID or your device screen-lock biometrics for quicker sign-in? Your password will remain available.'))return;await registerBiometrics()}
- async function registerBiometrics(){say('');try{if(PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable&&!await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()){say('This browser/device does not offer a compatible built-in authenticator. Use your password.');return}const challenge=randomBytes(32),userId=fromB64u(config.credentialUserId);const credential=await navigator.credentials.create({publicKey:{challenge,rp:{name:'EVR Money Manager'},user:{id:userId,name:config.phone,displayName:'EVR Money Manager user'},pubKeyCredParams:[{type:'public-key',alg:-7},{type:'public-key',alg:-257}],authenticatorSelection:{authenticatorAttachment:'platform',residentKey:'preferred',userVerification:'required'},timeout:60000,attestation:'none'}});if(!credential){say('Biometric setup was cancelled. You can use your password.');return}config.credentialId=b64u(credential.rawId);localStorage.setItem(KEY_AUTH,JSON.stringify(config));alert('Biometric sign-in enabled on this device. Keep your password as a backup.')}catch(e){alert('Biometric setup is not available here. Open the app over HTTPS on a supported browser, then use your password.')}}
- async function biometricLogin(){say('');try{if(!window.isSecureContext)throw Error('Use the HTTPS app address for biometrics.');const assertion=await navigator.credentials.get({publicKey:{challenge:randomBytes(32),allowCredentials:[{type:'public-key',id:fromB64u(config.credentialId)}],userVerification:'required',timeout:60000}});if(assertion&&assertion.rawId&&b64u(assertion.rawId)===config.credentialId){const pw=prompt('Biometric check passed. Enter your encryption password to decrypt financial data.');if(pw===null)return;await unlockOrMigrateEVRData(pw);hide()}else say('Biometric check did not match. Use your password.')}catch(e){console.error(e);say(e.message||'Biometric sign-in cancelled or unavailable. Use your password.')}}
- // Re-lock the UI when the app is backgrounded. This is a screen lock, not a substitute for encrypting stored data.
- let appWasUnlocked=false;
- const originalHide=hide;
- hide=function(){appWasUnlocked=true;originalHide()};
- function lockForBackground(){if(appWasUnlocked){appWasUnlocked=false;show();if(config&&config.phone&&config.passwordHash&&config.salt)renderLogin();else renderSetup();say('App locked. Authenticate to continue.')}}
- document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')lockForBackground()});
- window.addEventListener('pagehide',lockForBackground);
- try{config=JSON.parse(localStorage.getItem(KEY_AUTH)||'null')}catch(e){config=null}if(!crypto||!crypto.subtle){heading.textContent='Secure sign-in unavailable';desc.textContent='Open this app from its HTTPS address in a modern browser.';form.innerHTML='';show();return}if(config&&config.phone&&config.passwordHash&&config.salt)renderLogin();else renderSetup();show();
-})();
-</script>
 
 </body>
 </html>
