@@ -2175,10 +2175,14 @@ button:focus-visible,[role=button]:focus-visible { outline:3px solid #e9ac49; ou
       <div class="brand-copy"><div class="brand-name">VIJU</div><div class="brand-subtitle">MONEY MANAGER</div></div>
     </div>
   </div>
-  <div class="top-right">Personal</div>
+  <button type="button" class="top-right" onclick="toggleMenu()" aria-label="Choose workspace" style="border:0;cursor:pointer;font-family:inherit">Personal ▾</button>
   <button class="phone-bell" onclick="page('upcoming')" aria-label="Upcoming bills"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg><i></i></button>
 </header>
 <div id="menuPanel" class="menu-panel">
+  <div style="padding:8px 10px 4px;font-size:10px;font-weight:800;letter-spacing:.12em;color:#61706d;text-transform:uppercase">Workspace</div>
+  <button onclick="switchWorkspace('personal');toggleMenu()">Personal space</button>
+  <button onclick="switchWorkspace('business');toggleMenu()">Business space</button>
+  <hr style="border:0;border-top:1px solid #e1e8e3;margin:6px 4px">
   <button onclick="toggleMenu();openPhoneLoginPreview()">Phone login (preview)</button>
   <button onclick="page('categories');toggleMenu()">Categories</button>
   <button onclick="page('backup');toggleMenu()">Backup / Restore</button>
@@ -2554,9 +2558,26 @@ Reset Reminder
   </form>
 </dialog>
 <script>
-const KEY='evr_personal_expenses_v3';
+let activeWorkspace='personal';
+try{if(localStorage.getItem('viju_active_workspace_v1')==='business')activeWorkspace='business'}catch(e){}
+function workspaceStorageKey(workspace){return workspace==='business'?'evr_business_expenses_v3':'evr_personal_expenses_v3'}
+let KEY=workspaceStorageKey(activeWorkspace);
 const DEFAULT_CATS=['Food','Travel','Rent','Utilities','Shopping','Medical','Education','Entertainment','Bills','Other'];
 let db=loadDB(), editId=null, bankEditId=null, bankOrderSaving=false;
+function updateWorkspaceBadge(){const badge=document.querySelector('.top-right');if(badge)badge.textContent=(activeWorkspace==='business'?'Business':'Personal')+' ▾'}
+updateWorkspaceBadge();
+function switchWorkspace(workspace){
+  if(workspace!=='personal'&&workspace!=='business')return;
+  if(workspace===activeWorkspace)return;
+  activeWorkspace=workspace;KEY=workspaceStorageKey(workspace);
+  try{localStorage.setItem('viju_active_workspace_v1',workspace)}catch(e){}
+  db=loadDB();editId=null;bankEditId=null;bankOrderSaving=false;
+  updateWorkspaceBadge();
+  document.querySelectorAll('#bottomNav button').forEach((button,index)=>button.classList.toggle('active',index===0));
+  page('dashboard',document.querySelector('#bottomNav button'));
+  renderAll();syncBankSubSelects();syncOfflineStorageOnStartup();
+  toast(workspace==='business'?'Business space opened.':'Personal space opened.');
+}
 
 function defaultDB(){return {expenses:[],people:['Me'],categories:DEFAULT_CATS,banks:[{id:'cash',name:'Cash',balance:0,openingBalance:0}],bankTransactions:[],monthlyBudgets:{},version:4,updatedAt:new Date().toISOString()}}
 function loadDB(){try{const x=JSON.parse(localStorage.getItem(KEY));if(x&&Array.isArray(x.expenses)){x.banks=Array.isArray(x.banks)&&x.banks.length?x.banks:[{id:'cash',name:'Cash',balance:0,openingBalance:0}];x.bankTransactions=Array.isArray(x.bankTransactions)?x.bankTransactions:[];return x}return defaultDB()}catch(e){return defaultDB()}}
@@ -2569,7 +2590,7 @@ function getExpenses(){return [...db.expenses].sort((a,b)=>(b.date||'').localeCo
 function statusOf(e){if(e.status==='Paid')return 'Paid';if(e.dueDate&&e.dueDate<today())return 'Overdue';return 'Pending'}
 function toast(t){let x=document.getElementById('toast');x.textContent=t;x.classList.add('show');setTimeout(()=>x.classList.remove('show'),2200)}
 
-function page(id,btn){document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));const t=document.getElementById(id);if(!t)return;t.classList.add('active');document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('active'));if(btn)btn.classList.add('active');if(id==='reports')renderReports();if(id==='banks')renderBanks();if(id==='upcoming'||id==='overdue')renderUpcoming();window.scrollTo(0,0)}
+function page(id,btn){document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));const t=document.getElementById(id);if(!t)return;t.classList.add('active');document.querySelectorAll('.nav button,.bottom-nav button').forEach(x=>x.classList.remove('active'));if(btn)btn.classList.add('active');if(id==='reports')renderReports();if(id==='banks')renderBanks();if(id==='upcoming'||id==='overdue')renderUpcoming();window.scrollTo(0,0)}
 function fillSelect(id,items,allLabel){let s=document.getElementById(id);if(!s)return;let old=s.value;s.innerHTML=(allLabel?`<option value="">${esc(allLabel)}</option>`:'')+items.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('');if([...s.options].some(o=>o.value===old))s.value=old}
 function initReportYears(){
   const current=new Date().getFullYear();
@@ -4180,19 +4201,19 @@ function openOfflineDB(){
   return offlineDbPromise;
 }
 
-function offlineGet(){
+function offlineGet(storageKey=KEY){
   return openOfflineDB().then(d=>new Promise((resolve,reject)=>{
     const tx=d.transaction(OFFLINE_STORE,'readonly');
-    const req=tx.objectStore(OFFLINE_STORE).get(KEY);
+    const req=tx.objectStore(OFFLINE_STORE).get(storageKey);
     req.onsuccess=()=>resolve(req.result||null);
     req.onerror=()=>reject(req.error||new Error('IndexedDB read failed'));
   }));
 }
 
-function offlinePut(state){
+function offlinePut(state,storageKey=KEY){
   return openOfflineDB().then(d=>new Promise((resolve,reject)=>{
     const tx=d.transaction(OFFLINE_STORE,'readwrite');
-    tx.objectStore(OFFLINE_STORE).put(state,KEY);
+    tx.objectStore(OFFLINE_STORE).put(state,storageKey);
     tx.oncomplete=()=>resolve(true);
     tx.onerror=()=>reject(tx.error||new Error('IndexedDB write failed'));
   }));
@@ -4203,32 +4224,29 @@ function saveDB(){
   ensureBanks();
   db.updatedAt=new Date().toISOString();
   const snapshot=JSON.parse(JSON.stringify(db));
+  const storageKey=KEY;
   let localSaved=false;
-  try{localStorage.setItem(KEY,JSON.stringify(snapshot));localSaved=true;}catch(e){console.warn('localStorage save failed',e)}
-  const offlineSaved=offlinePut(snapshot).then(()=>true).catch(e=>{console.warn('IndexedDB save failed',e);return false;});
+  try{localStorage.setItem(storageKey,JSON.stringify(snapshot));localSaved=true;}catch(e){console.warn('localStorage save failed',e)}
+  const offlineSaved=offlinePut(snapshot,storageKey).then(()=>true).catch(e=>{console.warn('IndexedDB save failed',e);return false;});
   renderAll();
   return offlineSaved.then(saved=>localSaved||saved);
 }
 
 function syncOfflineStorageOnStartup(){
-  try{
-    if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
-  }catch(e){}
-  offlineGet().then(saved=>{
+  const storageKey=KEY, workspaceAtStart=activeWorkspace;
+  try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});}catch(e){}
+  offlineGet(storageKey).then(saved=>{
+    if(activeWorkspace!==workspaceAtStart)return;
     let local=null;
-    try{local=JSON.parse(localStorage.getItem(KEY)||'null')}catch(e){}
+    try{local=JSON.parse(localStorage.getItem(storageKey)||'null')}catch(e){}
     const localTime=local&&local.updatedAt?Date.parse(local.updatedAt):0;
     const savedTime=saved&&saved.updatedAt?Date.parse(saved.updatedAt):0;
-    if(saved && savedTime>localTime){
-      db=saved;
-      ensureBanks();
-      try{localStorage.setItem(KEY,JSON.stringify(db));}catch(e){}
+    if(saved&&savedTime>localTime){
+      db=saved;ensureBanks();
+      try{localStorage.setItem(storageKey,JSON.stringify(db))}catch(e){}
       renderAll();
-    }else if(local){
-      offlinePut(JSON.parse(JSON.stringify(local))).catch(()=>{});
-    }else{
-      offlinePut(JSON.parse(JSON.stringify(db))).catch(()=>{});
-    }
+    }else if(local){offlinePut(JSON.parse(JSON.stringify(local)),storageKey).catch(()=>{});}
+    else{offlinePut(JSON.parse(JSON.stringify(db)),storageKey).catch(()=>{});}
   }).catch(e=>console.warn('Offline storage initialization failed',e));
 }
 
